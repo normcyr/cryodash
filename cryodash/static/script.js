@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function setupPageNavigation() {
     const navTabs = document.querySelectorAll('.nav-tab');
-    
+
     navTabs.forEach(tab => {
         tab.addEventListener('click', (e) => {
             const pageName = e.target.dataset.page;
@@ -35,18 +35,18 @@ function switchPage(pageName) {
     document.querySelectorAll('.page-content').forEach(page => {
         page.classList.remove('active');
     });
-    
+
     // Deactivate all tabs
     document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    
+
     // Show selected page
     document.getElementById(`${pageName}-page`).classList.add('active');
-    
+
     // Activate selected tab
     document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
-    
+
     // If switching to charts and device is selected, load charts
     if (pageName === 'charts') {
         const device = document.getElementById('device-select').value;
@@ -63,7 +63,7 @@ async function loadInstruments() {
     try {
         const response = await fetch(`${API_URL}/instruments`);
         if (!response.ok) throw new Error('Failed to fetch instruments');
-        
+
         const instruments = await response.json();
         displayInstruments(instruments);
         populateChartSelects(instruments);
@@ -78,7 +78,7 @@ async function loadInstruments() {
  */
 async function displayInstruments(instruments) {
     const grid = document.getElementById('instruments-grid');
-    
+
     if (instruments.length === 0) {
         grid.innerHTML = '<p class="error">Aucun instrument configuré</p>';
         return;
@@ -90,7 +90,7 @@ async function displayInstruments(instruments) {
         try {
             const detailResponse = await fetch(`${API_URL}/instruments/${instrument.name}`);
             if (!detailResponse.ok) throw new Error('Failed to fetch instrument details');
-            
+
             const detail = await detailResponse.json();
             const card = createInstrumentCard(detail);
             grid.appendChild(card);
@@ -112,7 +112,7 @@ function createInstrumentCard(instrument) {
 
     // Determine overall status
     const overallStatus = determineOverallStatus(instrument.current);
-    
+
     let statusClass = 'status-ok';
     if (overallStatus === 'critical') statusClass = 'status-critical';
     else if (overallStatus === 'warning') statusClass = 'status-warning';
@@ -245,7 +245,7 @@ async function loadCharts() {
         // Get instrument details to know which cryogens to display
         const response = await fetch(`${API_URL}/instruments/${device}`);
         if (!response.ok) throw new Error('Failed to fetch instrument details');
-        
+
         const instrument = await response.json();
         const cryogens = instrument.cryogens.split(',').map(c => c.trim());
 
@@ -274,19 +274,19 @@ async function loadSingleChart(device, cryogen, hours) {
         const response = await fetch(
             `${API_URL}/instruments/${device}/history?cryogen=${cryogen}&hours=${hours}`
         );
-        
+
         if (!response.ok) throw new Error('Failed to fetch history');
-        
+
         const data = await response.json();
-        
+
         // Show single chart section
         document.getElementById('single-chart-section').style.display = 'block';
-        
+
         // Destroy previous chart if exists
         if (charts['main']) {
             charts['main'].destroy();
         }
-        
+
         // Create new chart
         const ctx = document.getElementById('history-chart').getContext('2d');
         charts['main'] = createChart(ctx, data, device, cryogen);
@@ -603,7 +603,7 @@ async function loadEvaporationRates() {
 
         data.forEach(rate => {
             const rateColor = rate.rate_percent_per_day < 0 ? '#10b981' : '#f59e0b';
-            const refillStatus = rate.refill_detected 
+            const refillStatus = rate.refill_detected
                 ? `<small>${new Date(rate.last_refill_timestamp).toLocaleString('fr-FR', {
                     month: '2-digit',
                     day: '2-digit',
@@ -611,7 +611,7 @@ async function loadEvaporationRates() {
                     minute: '2-digit'
                   })}</small>`
                 : '<small>Aucun détecté</small>';
-            
+
             html += `<tr>
                 <td><strong>${rate.device.toUpperCase()}</strong></td>
                 <td>${rate.cryogen}</td>
@@ -650,11 +650,11 @@ async function loadSyncHistory() {
         </tr></thead><tbody>`;
 
         data.forEach(record => {
-            const startDate = new Date(record.started_at).toLocaleString('fr-FR', { 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                day: '2-digit', 
-                month: '2-digit' 
+            const startDate = new Date(record.started_at).toLocaleString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit'
             });
             const duration = ((new Date(record.completed_at) - new Date(record.started_at)) / 1000).toFixed(1);
             const statusBadge = `<span class="status-badge ${record.status}">${record.status.toUpperCase()}</span>`;
