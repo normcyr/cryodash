@@ -63,7 +63,7 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "A"]
-ignore = ["E501", "B008"]  # E501: Line too long (handled by black), B008: FastAPI Depends pattern
+ignore = ["E501", "B008", "A003"]  # E501: Line too long, B008: FastAPI Depends, A003: SQLAlchemy `id` attribute
 
 [tool.mypy]
 python_version = "3.9"

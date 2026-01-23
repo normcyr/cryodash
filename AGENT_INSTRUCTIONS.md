@@ -354,6 +354,6 @@ python -m cryodash.scripts.sync_remote_logs
 class MySchema(BaseModel):
     hours: float  # Accepte 22.4
     count: int    # Rejette 5.0, accepte 5
-    
+
     model_config = ConfigDict(from_attributes=True)
 ```
