@@ -1,0 +1,42 @@
+name: Build & Deploy
+
+on:
+    push:
+        branches: [main]
+        tags: ["v*"]
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+                  cache: "pip"
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -e .[dev]
+
+            - name: Run all checks
+              run: |
+                  ruff check cryodash
+                  ruff format cryodash --check
+                  mypy cryodash
+
+            - name: Build distribution
+              run: |
+                  pip install build
+                  python -m build
+
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v3
+              with:
+                  name: distribution
+                  path: dist/

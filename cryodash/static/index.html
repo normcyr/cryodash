@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryoDash - Suivi des Cryogènes</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧊 CryoDash</h1>
+            <p class="subtitle">Suivi en temps réel des niveaux de cryogènes RMN</p>
+            
+            <!-- Navigation tabs -->
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-page="dashboard">
+                    📊 Dashboard
+                </button>
+                <button class="nav-tab" data-page="charts">
+                    📈 Graphiques
+                </button>
+                <button class="nav-tab" data-page="admin">
+                    ⚙️ Administration
+                </button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page-content active">
+                <div id="instruments-grid" class="instruments-grid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Charts Page -->
+            <div id="charts-page" class="page-content">
+                <div class="charts-header">
+                    <h2>Historique détaillé</h2>
+                    <div class="chart-controls">
+                        <select id="device-select">
+                            <option value="">Sélectionner un appareil</option>
+                        </select>
+                        <select id="hours-select">
+                            <option value="24">24 heures</option>
+                            <option value="72">3 jours</option>
+                            <option value="168">7 jours</option>
+                            <option value="720">30 jours</option>
+                        </select>
+                        <button id="refresh-chart-btn">Actualiser</button>
+                    </div>
+                </div>
+                
+                <!-- Single chart container for devices with one cryogen -->
+                <div id="single-chart-section" class="chart-section" style="display: none;">
+                    <div class="chart-wrapper">
+                        <canvas id="history-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Dual chart container for Neo700 -->
+                <div id="dual-chart-section" class="chart-section" style="display: none;">
+                    <div class="dual-charts">
+                        <div class="chart-item">
+                            <h3>Azote Liquide (N2)</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="history-chart-n2"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-item">
+                            <h3>Hélium Liquide (He)</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="history-chart-he"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="admin-page" class="page-content">
+                <div class="admin-section">
+                    <h2>Administration</h2>
+                    
+                    <!-- Sync Control -->
+                    <div class="admin-card">
+                        <h3>🔄 Synchronisation des logs</h3>
+                        <div class="admin-content">
+                            <p id="sync-status-text">Statut du scheduler: <strong>En attente</strong></p>
+                            <button id="manual-sync-btn" class="admin-btn">Synchroniser maintenant</button>
+                            <div id="sync-result" class="sync-result" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Database Stats -->
+                    <div class="admin-card">
+                        <h3>📊 Statistiques BD</h3>
+                        <div class="admin-content">
+                            <div id="db-stats-container">
+                                <p>Chargement...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evaporation Rates -->
+                    <div class="admin-card">
+                        <h3>📉 Taux d'évaporation</h3>
+                        <div class="admin-content">
+                            <div class="evap-controls">
+                                <select id="evap-hours">
+                                    <option value="24">24 heures</option>
+                                    <option value="72">3 jours</option>
+                                    <option value="168">7 jours</option>
+                                </select>
+                                <button id="evap-refresh-btn">Actualiser</button>
+                            </div>
+                            <div id="evap-rates-container">
+                                <p>Chargement...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sync History -->
+                    <div class="admin-card">
+                        <h3>📜 Historique des syncs</h3>
+                        <div class="admin-content">
+                            <div id="sync-history-container">
+                                <p>Chargement...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 CryoDash | <a href="https://github.com/yourusername/cryodash">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
