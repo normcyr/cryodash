@@ -1,5 +1,13 @@
 # CryoDash - Cryogenic Level Monitoring Dashboard
 
+[![CI](https://github.com/normcyr/cryodash/actions/workflows/ci.yml/badge.svg)](https://github.com/normcyr/cryodash/actions/workflows/ci.yml)
+[![Build](https://github.com/normcyr/cryodash/actions/workflows/build.yml/badge.svg)](https://github.com/normcyr/cryodash/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/normcyr/cryodash/branch/main/graph/badge.svg)](https://codecov.io/gh/normcyr/cryodash)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checking: mypy](https://img.shields.io/badge/type%20checking-mypy-blue.svg)](http://mypy-lang.org/)
+
 Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide et hélium liquide) dans vos appareils RMN.
 
 ## Caractéristiques
@@ -29,7 +37,7 @@ Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide 
 1. Cloner le repository :
 
 ```bash
-git clone https://github.com/yourusername/cryodash.git
+git clone https://github.com/normcyr/cryodash.git
 cd cryodash
 ```
 
