@@ -190,10 +190,50 @@ Modifier le fichier `cryodash/config.py` pour :
 
 ### Tests
 
+CryoDash inclut une suite de tests complète avec couverture de code:
+
 ```bash
-pytest
+# Exécuter les tests principaux
+pytest tests/test_api_integration.py tests/test_unit.py -v
+
+# Avec rapport de couverture
+pytest tests/test_api_integration.py tests/test_unit.py --cov=cryodash --cov-report=term-missing
+
+# Tous les tests (incluant les anciens fichiers)
 pytest --cov=cryodash
 ```
+
+**Couverture actuelle :** 55% (25 tests passants)
+- ✅ API Integration tests : 13/13 passants (100%)
+- ✅ Unit tests : 12/12 passants (100%)
+- Couverture par module :
+  - `models.py`: 100% ✅
+  - `api/routes.py`: 91%
+  - `config.py`: 100% ✅
+  - `database.py`: 62%
+  - `main.py`: 57%
+  - `scripts/`: 12-17% (À améliorer)
+
+
+### Docker
+
+CryoDash peut être exécuté dans un conteneur:
+
+```bash
+# Build l'image
+docker build -t cryodash:latest .
+
+# Ou utiliser Docker Compose (recommandé)
+docker-compose up -d
+
+# Accéder à l'application
+# http://localhost:8000
+```
+
+**docker-compose.yml :**
+- Service `cryodash-app` sur le port 8000
+- Volumes persistants pour `cryodash_data/` et `cryodash.db`
+- Variables d'environnement configurables (HOST, PORT, DATABASE_URL, DEBUG)
 
 ### Formatage et vérifications du code
 
