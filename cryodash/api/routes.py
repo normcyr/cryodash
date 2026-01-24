@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from cryodash.models import (
     SyncHistorySchema,
 )
 from cryodash.scripts.sync_remote_logs import sync_logs
+from cryodash.websocket import manager
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -375,3 +376,29 @@ def get_evaporation_rates(
             evaporation_rates.append(EvaporationRateSchema(**rate_data))
 
     return evaporation_rates
+
+
+@router.websocket("/ws/readings/{instrument_id}")
+async def websocket_readings(websocket: WebSocket, instrument_id: str):
+    """
+    WebSocket endpoint for real-time cryogenic readings.
+
+    Clients connect to receive live updates of cryogenic levels for an instrument.
+    """
+    await manager.connect(websocket, instrument_id)
+    # Send latest reading immediately upon connection
+    await manager.send_latest_reading(websocket, instrument_id)
+
+    try:
+        while True:
+            # Keep connection open and receive messages
+            # (We don't expect client messages, but we listen for disconnects)
+            data = await websocket.receive_text()
+            # Echo back or ignore client messages
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, instrument_id)
+    except Exception:
+        manager.disconnect(websocket, instrument_id)
+        raise
