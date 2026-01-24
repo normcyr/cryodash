@@ -204,6 +204,7 @@ pytest --cov=cryodash
 ```
 
 **Couverture actuelle :** 55% (25 tests passants)
+
 - ✅ API Integration tests : 13/13 passants (100%)
 - ✅ Unit tests : 12/12 passants (100%)
 - Couverture par module :
@@ -213,7 +214,6 @@ pytest --cov=cryodash
   - `database.py`: 62%
   - `main.py`: 57%
   - `scripts/`: 12-17% (À améliorer)
-
 
 ### Docker
 
@@ -231,6 +231,7 @@ docker-compose up -d
 ```
 
 **docker-compose.yml :**
+
 - Service `cryodash-app` sur le port 8000
 - Volumes persistants pour `cryodash_data/` et `cryodash.db`
 - Variables d'environnement configurables (HOST, PORT, DATABASE_URL, DEBUG)
