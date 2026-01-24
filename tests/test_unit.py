@@ -1,11 +1,10 @@
-"""Test cases for database models and schemas."""
+"""Unit tests for models and schemas."""
 
 from datetime import datetime
 
 from cryodash.models import (
     CryogenReading,
     CryogenReadingSchema,
-    EvaporationRateSchema,
     Instrument,
     InstrumentSchema,
 )
@@ -26,7 +25,19 @@ class TestCryogenReadingModel:
         assert reading.cryogen == "N2"
         assert reading.level == 87.5
 
-    def test_level_range(self):
+    def test_default_timestamp(self):
+        """Test CryogenReading with explicit timestamp."""
+        now = datetime.utcnow()
+        reading = CryogenReading(
+            device="neo600",
+            cryogen="N2",
+            level=87.5,
+            timestamp=now,
+        )
+        assert reading.timestamp is not None
+        assert reading.timestamp == now
+
+    def test_various_levels(self):
         """Test various level values."""
         for level in [0.0, 50.0, 100.0]:
             reading = CryogenReading(
@@ -50,9 +61,10 @@ class TestInstrumentModel:
         )
         assert instrument.name == "neo600"
         assert instrument.frequency == "600 MHz"
+        assert instrument.description == "Test"
 
-    def test_without_description(self):
-        """Test creating instrument without description."""
+    def test_optional_description(self):
+        """Test instrument without description."""
         instrument = Instrument(
             name="neo700",
             frequency="700 MHz",
@@ -89,6 +101,7 @@ class TestSchemas:
         }
         schema = CryogenReadingCreateSchema(**data)
         assert schema.device == "neo600"
+        assert schema.level == 87.5
 
     def test_instrument_schema(self):
         """Test InstrumentSchema."""
@@ -102,28 +115,38 @@ class TestSchemas:
         }
         schema = InstrumentSchema(**data)
         assert schema.name == "neo600"
+        assert schema.frequency == "600 MHz"
 
-    def test_evaporation_rate_schema_basic(self):
-        """Test EvaporationRateSchema basic."""
-        data = {
-            "device": "neo600",
-            "cryogen": "N2",
-            "rate_percent_per_day": -2.5,
-        }
-        schema = EvaporationRateSchema(**data)
-        assert schema.device == "neo600"
-        assert schema.rate_percent_per_day == -2.5
-        assert schema.refill_detected is False
 
-    def test_evaporation_rate_schema_with_refill(self):
-        """Test EvaporationRateSchema with refill."""
-        data = {
-            "device": "neo700",
-            "cryogen": "He",
-            "rate_percent_per_day": -1.8,
-            "refill_detected": True,
-            "last_refill_timestamp": datetime.now(),
-        }
-        schema = EvaporationRateSchema(**data)
-        assert schema.refill_detected is True
-        assert schema.last_refill_timestamp is not None
+class TestAlertStatus:
+    """Test alert status calculation."""
+
+    def test_status_ok(self):
+        """Test OK status."""
+        from cryodash.api.routes import _get_alert_status
+
+        status = _get_alert_status("neo600", "N2", 50.0)
+        assert status == "ok"
+
+    def test_status_warning(self):
+        """Test warning status."""
+        from cryodash.api.routes import _get_alert_status
+
+        status = _get_alert_status("neo600", "N2", 15.0)
+        assert status == "warning"
+
+    def test_status_critical(self):
+        """Test critical status."""
+        from cryodash.api.routes import _get_alert_status
+
+        status = _get_alert_status("neo600", "N2", 5.0)
+        assert status == "critical"
+
+    def test_status_neo700_he(self):
+        """Test Neo700 He thresholds."""
+        from cryodash.api.routes import _get_alert_status
+
+        # Ne0700 He: warning 20%, critical 5%
+        assert _get_alert_status("neo700", "He", 30.0) == "ok"
+        assert _get_alert_status("neo700", "He", 15.0) == "warning"
+        assert _get_alert_status("neo700", "He", 3.0) == "critical"

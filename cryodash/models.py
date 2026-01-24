@@ -20,7 +20,7 @@ class CryogenReading(Base):
     device = Column(String(50), nullable=False, index=True)  # e.g., "neo600", "neo700"
     cryogen = Column(String(10), nullable=False)  # e.g., "N2", "He"
     level = Column(Float, nullable=False)  # Percentage (0-100)
-    timestamp = Column(DateTime, nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True, default=func.now())
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
@@ -78,7 +78,7 @@ class CryogenReadingCreateSchema(BaseModel):
     device: str
     cryogen: str
     level: float
-    timestamp: datetime
+    timestamp: Optional[datetime] = None
 
 
 class CryogenCurrentSchema(BaseModel):

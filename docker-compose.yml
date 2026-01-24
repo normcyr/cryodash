@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  cryodash:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cryodash-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./cryodash_data:/app/data
+      - ./cryodash.db:/app/cryodash.db
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=False
+      - DATABASE_URL=sqlite:////app/cryodash.db
+      - DB_ECHO=False
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  cryodash_data:
+    driver: local

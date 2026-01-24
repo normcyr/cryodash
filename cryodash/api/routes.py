@@ -1,6 +1,7 @@
 """API routes for CryoDash."""
 
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, desc
@@ -15,6 +16,7 @@ from cryodash.models import (
     CryogenReadingSchema,
     EvaporationRateSchema,
     Instrument,
+    InstrumentCreateSchema,
     InstrumentDetailSchema,
     InstrumentSchema,
     SyncHistory,
@@ -137,7 +139,7 @@ def get_instrument_current(name: str, db: Session = Depends(get_db)):
 @router.get("/instruments/{name}/history", response_model=list[CryogenReadingSchema])
 def get_instrument_history(
     name: str,
-    cryogen: str = Query(..., description="Cryogen type (N2 or He)"),
+    cryogen: Optional[str] = Query(None, description="Cryogen type (N2 or He)"),
     hours: int = Query(24, description="Hours of history to retrieve"),
     limit: int = Query(1000, description="Maximum number of records"),
     db: Session = Depends(get_db),
@@ -150,22 +152,17 @@ def get_instrument_history(
 
     cutoff_time = datetime.utcnow() - timedelta(hours=hours)
 
-    # Normalize cryogen to uppercase
-    cryogen_normalized = cryogen.upper()
-
-    readings = (
-        db.query(CryogenReading)
-        .filter(
-            and_(
-                CryogenReading.device == name,
-                CryogenReading.cryogen == cryogen_normalized,
-                CryogenReading.timestamp >= cutoff_time,
-            )
+    query = db.query(CryogenReading).filter(
+        and_(
+            CryogenReading.device == name,
+            CryogenReading.timestamp >= cutoff_time,
         )
-        .order_by(desc(CryogenReading.timestamp))
-        .limit(limit)
-        .all()
     )
+
+    if cryogen:
+        query = query.filter(CryogenReading.cryogen == cryogen.upper())
+
+    readings = query.order_by(desc(CryogenReading.timestamp)).limit(limit).all()
 
     return sorted(readings, key=lambda x: x.timestamp)
 
@@ -176,11 +173,12 @@ def create_reading(
     db: Session = Depends(get_db),
 ):
     """Create a new cryogenic reading."""
+    timestamp = reading.timestamp if reading.timestamp else datetime.utcnow()
     db_reading = CryogenReading(
         device=reading.device,
         cryogen=reading.cryogen,
         level=reading.level,
-        timestamp=reading.timestamp,
+        timestamp=timestamp,
     )
     db.add(db_reading)
     db.commit()
@@ -190,7 +188,7 @@ def create_reading(
 
 @router.post("/instruments", response_model=InstrumentSchema)
 def create_instrument(
-    instrument: InstrumentSchema,
+    instrument: InstrumentCreateSchema,
     db: Session = Depends(get_db),
 ):
     """Create a new instrument."""
