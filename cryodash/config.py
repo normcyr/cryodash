@@ -3,9 +3,13 @@
 import os
 from pathlib import Path
 
-# Project paths
-PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "cryodash_data"
+# Project paths - use /app/data in Docker, local cryodash_data otherwise
+if os.getenv("DOCKER_ENV", "false").lower() == "true" or os.path.exists("/.dockerenv"):
+    DATA_DIR = Path("/app/data")
+else:
+    PROJECT_ROOT = Path(__file__).parent.parent
+    DATA_DIR = PROJECT_ROOT / "cryodash_data"
+
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR}/cryodash.db")
 
 # Server configuration
