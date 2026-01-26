@@ -61,7 +61,7 @@ def get_instrument_detail(name: str, db: Session = Depends(get_db)):
     current_readings = []
 
     for cryogen in cryogens:
-        cryogen = cryogen.strip()
+        cryogen = cryogen.strip().upper()
         # Get latest reading
         latest = (
             db.query(CryogenReading)
@@ -110,7 +110,7 @@ def get_instrument_current(name: str, db: Session = Depends(get_db)):
     current_readings = []
 
     for cryogen in cryogens:
-        cryogen = cryogen.strip()
+        cryogen = cryogen.strip().upper()
         latest = (
             db.query(CryogenReading)
             .filter(
@@ -177,7 +177,7 @@ def create_reading(
     timestamp = reading.timestamp if reading.timestamp else datetime.utcnow()
     db_reading = CryogenReading(
         device=reading.device,
-        cryogen=reading.cryogen,
+        cryogen=reading.cryogen.upper(),
         level=reading.level,
         timestamp=timestamp,
     )

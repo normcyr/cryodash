@@ -2,15 +2,18 @@
 
 const API_URL = '/api';
 let charts = {};  // Store multiple chart instances
+// wsClients is defined in websocket-client.js
+let instruments = [];  // Cache of instruments
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     setupPageNavigation();
     setupAdminControls();
-    loadInstruments();
+    setupConnectionStatusIndicator();
     setupChartControls();
-    // Refresh dashboard every 60 seconds
-    setInterval(loadInstruments, 60000);
+    await loadInstruments();
+    // Setup WebSocket connections AFTER instruments are loaded
+    setupWebSocketConnections();
 });
 
 /**
@@ -64,7 +67,7 @@ async function loadInstruments() {
         const response = await fetch(`${API_URL}/instruments`);
         if (!response.ok) throw new Error('Failed to fetch instruments');
 
-        const instruments = await response.json();
+        instruments = await response.json();
         displayInstruments(instruments);
         populateChartSelects(instruments);
     } catch (error) {
@@ -109,6 +112,7 @@ async function displayInstruments(instruments) {
 function createInstrumentCard(instrument) {
     const card = document.createElement('div');
     card.className = 'instrument-card';
+    card.setAttribute('data-instrument', instrument.name);
 
     // Determine overall status
     const overallStatus = determineOverallStatus(instrument.current);
@@ -702,5 +706,112 @@ async function loadEvaporationRatesForDashboard() {
         });
     } catch (error) {
         console.error('Error loading evaporation rates for dashboard:', error);
+    }
+}
+
+/**
+ * Setup WebSocket connections for real-time updates
+ */
+function setupWebSocketConnections() {
+    console.log('Setting up WebSocket connections for', instruments.length, 'instruments');
+    instruments.forEach(instrument => {
+        connectWebSocketForInstrument(instrument.name);
+    });
+}
+
+/**
+ * Connect WebSocket for a specific instrument
+ */
+function connectWebSocketForInstrument(instrumentName) {
+    const wsUrl = `ws://${window.location.host}/api/ws/readings/${instrumentName}`;
+
+    connectWebSocket(instrumentName, {
+        onReading: (data) => {
+            console.log(`New reading for ${instrumentName}:`, data);
+            // Update the UI with new reading
+            updateInstrumentCard(instrumentName, data);
+        },
+        onConnect: () => {
+            console.log(`Connected to WebSocket for ${instrumentName}`);
+            updateConnectionStatus(true);
+        },
+        onDisconnect: () => {
+            console.log(`Disconnected from WebSocket for ${instrumentName}`);
+            // Retry connection after 3 seconds
+            setTimeout(() => connectWebSocketForInstrument(instrumentName), 3000);
+        },
+        onError: (error) => {
+            console.error(`WebSocket error for ${instrumentName}:`, error);
+            updateConnectionStatus(false);
+        }
+    });
+}
+
+/**
+ * Update connection status indicator
+ */
+function setupConnectionStatusIndicator() {
+    const statusEl = document.getElementById('connection-status');
+    if (!statusEl) return;
+
+    window.updateConnectionStatus = function(connected) {
+        if (connected) {
+            statusEl.classList.remove('disconnected');
+            statusEl.classList.add('connected');
+            statusEl.querySelector('.status-text').textContent = 'Connecté';
+        } else {
+            statusEl.classList.remove('connected');
+            statusEl.classList.add('disconnected');
+            statusEl.querySelector('.status-text').textContent = 'Déconnecté';
+        }
+    };
+}
+
+/**
+ * Update instrument card with new reading
+ */
+function updateInstrumentCard(instrumentName, reading) {
+    const card = document.querySelector(`[data-instrument="${instrumentName}"]`);
+    if (!card) return;
+
+    // Find the reading element for this cryogen
+    const readingEl = Array.from(card.querySelectorAll('.cryogen-reading')).find(el => {
+        return el.querySelector('.cryogen-name')?.textContent === reading.cryogen;
+    });
+
+    if (!readingEl) return;
+
+    // Update level
+    const levelValue = readingEl.querySelector('.level-value span:last-child');
+    if (levelValue) {
+        levelValue.textContent = reading.level.toFixed(1) + '%';
+    }
+
+    // Update level bar
+    const levelFill = readingEl.querySelector('.level-fill');
+    if (levelFill) {
+        levelFill.style.width = reading.level + '%';
+    }
+
+    // Update timestamp
+    const timeEl = readingEl.querySelector('.reading-time');
+    if (timeEl) {
+        const timestamp = new Date(reading.timestamp);
+        const formattedTime = timestamp.toLocaleString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            day: '2-digit',
+            month: '2-digit'
+        });
+        timeEl.textContent = formattedTime;
+    }
+
+    // Update status
+    const statusClass = reading.status;
+    readingEl.className = `cryogen-reading ${statusClass}`;
+    const statusMsg = readingEl.querySelector('.status-indicator');
+    if (statusMsg) {
+        statusMsg.innerHTML = getStatusMessage(statusClass);
     }
 }
