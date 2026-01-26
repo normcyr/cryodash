@@ -34,6 +34,22 @@ cryodash/
 └── .gitignore
 ```
 
+## Docker & Déploiement
+
+**Configuration incluse:**
+
+- `Dockerfile` : Image Python 3.12 slim
+- `docker-compose.yml` : Conteneur avec volumes persistants et healthcheck
+- `.env.example` : Template variables environnement (copier en `.env` avant démarrage)
+- `config.py` : Auto-détection environnement Docker
+
+**Démarrage rapide:**
+
+```bash
+cp .env.example .env
+docker-compose up
+```
+
 ## Patterns et conventions
 
 ### Base de données
