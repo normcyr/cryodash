@@ -1,6 +1,6 @@
 """Unit tests for models and schemas."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cryodash.models import (
     CryogenReading,
@@ -27,7 +27,7 @@ class TestCryogenReadingModel:
 
     def test_default_timestamp(self):
         """Test CryogenReading with explicit timestamp."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         reading = CryogenReading(
             device="neo600",
             cryogen="N2",
@@ -125,28 +125,40 @@ class TestAlertStatus:
         """Test OK status."""
         from cryodash.api.routes import _get_alert_status
 
-        status = _get_alert_status("neo600", "N2", 50.0)
+        # N2: normal 60-100%
+        status = _get_alert_status("neo600", "N2", 80.0)
         assert status == "ok"
 
     def test_status_warning(self):
         """Test warning status."""
         from cryodash.api.routes import _get_alert_status
 
-        status = _get_alert_status("neo600", "N2", 15.0)
+        # N2: warning 30-59%
+        status = _get_alert_status("neo600", "N2", 45.0)
         assert status == "warning"
 
     def test_status_critical(self):
         """Test critical status."""
         from cryodash.api.routes import _get_alert_status
 
-        status = _get_alert_status("neo600", "N2", 5.0)
+        # N2: critical 10-29%
+        status = _get_alert_status("neo600", "N2", 15.0)
         assert status == "critical"
+
+    def test_status_catastrophic(self):
+        """Test catastrophic status."""
+        from cryodash.api.routes import _get_alert_status
+
+        # N2: catastrophic 0-9%
+        status = _get_alert_status("neo600", "N2", 5.0)
+        assert status == "catastrophic"
 
     def test_status_neo700_he(self):
         """Test Neo700 He thresholds."""
         from cryodash.api.routes import _get_alert_status
 
-        # Ne0700 He: warning 20%, critical 5%
-        assert _get_alert_status("neo700", "He", 30.0) == "ok"
-        assert _get_alert_status("neo700", "He", 15.0) == "warning"
-        assert _get_alert_status("neo700", "He", 3.0) == "critical"
+        # HE: normal 20-100%, warning 15-19%, critical 5-14%, catastrophic 0-4%
+        assert _get_alert_status("neo700", "HE", 30.0) == "ok"
+        assert _get_alert_status("neo700", "HE", 17.0) == "warning"
+        assert _get_alert_status("neo700", "HE", 10.0) == "critical"
+        assert _get_alert_status("neo700", "HE", 3.0) == "catastrophic"
