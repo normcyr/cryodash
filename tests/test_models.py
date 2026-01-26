@@ -105,10 +105,19 @@ class TestSchemas:
 
     def test_evaporation_rate_schema_basic(self):
         """Test EvaporationRateSchema basic."""
+        now = datetime.now()
         data = {
             "device": "neo600",
             "cryogen": "N2",
             "rate_percent_per_day": -2.5,
+            "last_24h_change": -1.5,
+            "hours_calculated": 24.0,
+            "latest_level": 87.5,
+            "oldest_level": 89.0,
+            "latest_timestamp": now,
+            "oldest_timestamp": now,
+            "refill_detected": False,
+            "last_refill_timestamp": None,
         }
         schema = EvaporationRateSchema(**data)
         assert schema.device == "neo600"
@@ -117,12 +126,19 @@ class TestSchemas:
 
     def test_evaporation_rate_schema_with_refill(self):
         """Test EvaporationRateSchema with refill."""
+        now = datetime.now()
         data = {
             "device": "neo700",
-            "cryogen": "He",
+            "cryogen": "HE",
             "rate_percent_per_day": -1.8,
+            "last_24h_change": -2.0,
+            "hours_calculated": 120.0,
+            "latest_level": 85.0,
+            "oldest_level": 87.0,
+            "latest_timestamp": now,
+            "oldest_timestamp": now,
             "refill_detected": True,
-            "last_refill_timestamp": datetime.now(),
+            "last_refill_timestamp": now,
         }
         schema = EvaporationRateSchema(**data)
         assert schema.refill_detected is True

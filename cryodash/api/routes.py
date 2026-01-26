@@ -1,6 +1,6 @@
 """API routes for CryoDash."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -154,7 +154,7 @@ def get_instrument_history(
     if not instrument:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
     query = db.query(CryogenReading).filter(
         and_(
@@ -177,7 +177,7 @@ def create_reading(
     db: Session = Depends(get_db),
 ):
     """Create a new cryogenic reading."""
-    timestamp = reading.timestamp if reading.timestamp else datetime.utcnow()
+    timestamp = reading.timestamp if reading.timestamp else datetime.now(timezone.utc)
     db_reading = CryogenReading(
         device=reading.device,
         cryogen=reading.cryogen.upper(),

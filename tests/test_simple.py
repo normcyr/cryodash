@@ -10,8 +10,8 @@ from cryodash.models import CryogenReading, Instrument
 
 
 @pytest.fixture
-def client():
-    """Create a test client."""
+def client(test_db):
+    """Create a test client with test database."""
     return TestClient(app)
 
 
@@ -112,12 +112,23 @@ def test_instrument_schema():
 
 def test_evaporation_rate_schema():
     """Test EvaporationRateSchema."""
+    from datetime import datetime
+
     from cryodash.models import EvaporationRateSchema
 
+    now = datetime.now()
     data = {
         "device": "neo600",
         "cryogen": "N2",
         "rate_percent_per_day": -2.5,
+        "last_24h_change": -1.5,
+        "hours_calculated": 24.0,
+        "latest_level": 87.5,
+        "oldest_level": 89.0,
+        "latest_timestamp": now,
+        "oldest_timestamp": now,
+        "refill_detected": False,
+        "last_refill_timestamp": None,
     }
     schema = EvaporationRateSchema(**data)
     assert schema.device == "neo600"
@@ -133,6 +144,8 @@ def test_alert_status_functions():
     """Test alert status calculation."""
     from cryodash.api.routes import _get_alert_status
 
-    assert _get_alert_status("neo600", "N2", 50.0) == "ok"
-    assert _get_alert_status("neo600", "N2", 15.0) == "warning"
-    assert _get_alert_status("neo600", "N2", 5.0) == "critical"
+    # N2: normal 60-100%, warning 30-59%, critical 10-29%, catastrophic 0-9%
+    assert _get_alert_status("neo600", "N2", 80.0) == "ok"
+    assert _get_alert_status("neo600", "N2", 45.0) == "warning"
+    assert _get_alert_status("neo600", "N2", 15.0) == "critical"
+    assert _get_alert_status("neo600", "N2", 5.0) == "catastrophic"

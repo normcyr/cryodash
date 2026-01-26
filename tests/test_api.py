@@ -9,8 +9,8 @@ from cryodash.main import app
 
 
 @pytest.fixture
-def client():
-    """Create a test client."""
+def client(test_db):
+    """Create a test client with test database."""
     return TestClient(app)
 
 

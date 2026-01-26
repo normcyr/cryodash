@@ -10,8 +10,8 @@ from cryodash.models import CryogenReading, Instrument
 
 
 @pytest.fixture
-def client():
-    """Create a test client."""
+def client(test_db):
+    """Create a test client with test database."""
     return TestClient(app)
 
 
@@ -71,7 +71,7 @@ def test_get_stats(client):
     data = response.json()
     assert "total_readings" in data
     assert "total_instruments" in data
-    assert "devices" in data
+    assert "latest_sync" in data
 
 
 def test_get_evaporation_rate(client):
@@ -204,12 +204,23 @@ class TestSchemas:
 
     def test_evaporation_rate_schema(self):
         """Test EvaporationRateSchema."""
+        from datetime import datetime
+
         from cryodash.models import EvaporationRateSchema
 
+        now = datetime.now()
         data = {
             "device": "neo600",
             "cryogen": "N2",
             "rate_percent_per_day": -2.5,
+            "last_24h_change": -1.5,
+            "hours_calculated": 24.0,
+            "latest_level": 87.5,
+            "oldest_level": 89.0,
+            "latest_timestamp": now,
+            "oldest_timestamp": now,
+            "refill_detected": False,
+            "last_refill_timestamp": None,
         }
         schema = EvaporationRateSchema(**data)
         assert schema.device == "neo600"
@@ -226,7 +237,8 @@ def test_alert_status_ok(client):
     """Test alert status calculation."""
     from cryodash.api.routes import _get_alert_status
 
-    status = _get_alert_status("neo600", "N2", 50.0)
+    # N2: normal 60-100%
+    status = _get_alert_status("neo600", "N2", 80.0)
     assert status == "ok"
 
 
@@ -234,7 +246,8 @@ def test_alert_status_warning(client):
     """Test warning level."""
     from cryodash.api.routes import _get_alert_status
 
-    status = _get_alert_status("neo600", "N2", 15.0)
+    # N2: warning 30-59%
+    status = _get_alert_status("neo600", "N2", 45.0)
     assert status == "warning"
 
 
@@ -242,5 +255,6 @@ def test_alert_status_critical(client):
     """Test critical level."""
     from cryodash.api.routes import _get_alert_status
 
-    status = _get_alert_status("neo600", "N2", 5.0)
+    # N2: critical 10-29%
+    status = _get_alert_status("neo600", "N2", 15.0)
     assert status == "critical"
