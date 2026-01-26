@@ -27,12 +27,27 @@ Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide 
 
 ## Installation
 
-### Prérequis
+### Option 1: Docker (recommandé)
+
+Prérequis: [Docker & Docker Compose](https://www.docker.com/products/docker-desktop)
+
+```bash
+git clone https://github.com/normcyr/cryodash.git
+cd cryodash
+cp .env.example .env
+docker-compose up
+```
+
+Accessible sur: `http://localhost:8000`
+
+### Option 2: Local (Python)
+
+#### Prérequis
 
 - Python 3.9 ou plus récent
 - pip ou uv
 
-### Étapes d'installation
+#### Étapes d'installation
 
 1. Cloner le repository :
 
