@@ -25,18 +25,21 @@ APP_DESCRIPTION = "Dashboard for monitoring cryogenic levels in NMR instruments"
 ALERT_THRESHOLDS = {
     "neo600": {
         "N2": {
-            "warning": 25.0,  # Yellow alert below 25%
-            "critical": 10.0,  # Red alert below 10%
+            "catastrophic": 10.0,  # Red alert below 10%
+            "critical": 30.0,  # Orange alert below 30%
+            "warning": 60.0,  # Yellow alert below 60%
         }
     },
     "neo700": {
         "N2": {
-            "warning": 25.0,
-            "critical": 10.0,
+            "catastrophic": 10.0,
+            "critical": 30.0,
+            "warning": 60.0,
         },
-        "He": {
+        "HE": {
+            "catastrophic": 5.0,
+            "critical": 15.0,
             "warning": 20.0,
-            "critical": 5.0,
         },
     },
 }

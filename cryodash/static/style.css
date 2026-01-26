@@ -246,6 +246,13 @@ header h1 {
     gap: 1.5rem;
 }
 
+/* Dual cryogen layout for neo700 */
+.dual-cryogen-card .readings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 .cryogen-reading {
     background: rgba(255, 255, 255, 0.03);
     border-left: 4px solid var(--border-color);
@@ -264,6 +271,10 @@ header h1 {
 
 .cryogen-reading.critical {
     border-left-color: var(--critical-color);
+}
+
+.cryogen-reading.catastrophic {
+    border-left-color: #dc2626;
 }
 
 .reading-header {
@@ -297,7 +308,7 @@ header h1 {
 
 .level-bar {
     width: 100%;
-    height: 8px;
+    height: 16px;
     background: var(--border-color);
     border-radius: 4px;
     overflow: hidden;
@@ -316,6 +327,36 @@ header h1 {
 
 .cryogen-reading.warning .level-fill {
     background: var(--warning-color);
+}
+
+.cryogen-reading.catastrophic .level-fill {
+    background: #dc2626;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Status Footer */
+.status-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    gap: 1rem;
+}
+
+.status-indicator {
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.evaporation-rate {
+    font-size: 0.85rem;
+    text-align: right;
+    white-space: nowrap;
 }
 
 /* Chart Section */
@@ -645,16 +686,4 @@ button:active {
     color: var(--primary-color);
     font-size: 1.5rem;
     font-weight: bold;
-}
-
-.evaporation-rates {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-    font-size: 0.9rem;
-}
-
-.evaporation-rates div {
-    margin: 0.5rem 0;
-    font-weight: 500;
 }
