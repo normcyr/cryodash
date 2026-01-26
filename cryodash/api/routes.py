@@ -31,10 +31,13 @@ router = APIRouter(prefix="/api", tags=["api"])
 def _get_alert_status(device: str, cryogen: str, level: float) -> str:
     """Determine alert status based on threshold."""
     thresholds = ALERT_THRESHOLDS.get(device, {}).get(cryogen, {})
+    catastrophic = thresholds.get("catastrophic", 0)
     critical = thresholds.get("critical", 0)
     warning = thresholds.get("warning", float("inf"))
 
-    if level <= critical:
+    if level <= catastrophic:
+        return "catastrophic"
+    elif level <= critical:
         return "critical"
     elif level <= warning:
         return "warning"
@@ -303,14 +306,17 @@ def get_evaporation_rates(
     if device:
         instruments = [i for i in instruments if i.name == device]
 
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-
     for instrument in instruments:
         # Parse cryogens
         cryogens = instrument.cryogens.split(",") if instrument.cryogens else []
 
         for cryogen in cryogens:
             cryogen = cryogen.strip().upper()
+
+            # Use longer period for HE (measured once per day, slower evaporation)
+            # Use requested hours for other cryogens
+            lookup_hours = 168 if cryogen == "HE" else hours
+            cutoff_time = datetime.now() - timedelta(hours=lookup_hours)
 
             # Get all readings in the time window, ordered by timestamp
             readings = (

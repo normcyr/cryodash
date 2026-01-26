@@ -114,6 +114,11 @@ function createInstrumentCard(instrument) {
     card.className = 'instrument-card';
     card.setAttribute('data-instrument', instrument.name);
 
+    // Add class for neo700 (dual cryogen)
+    if (instrument.name === 'neo700') {
+        card.classList.add('dual-cryogen-card');
+    }
+
     // Determine overall status
     const overallStatus = determineOverallStatus(instrument.current);
 
@@ -136,9 +141,6 @@ function createInstrumentCard(instrument) {
         <div class="readings-container">
             ${instrument.current.map(reading => createReadingElement(reading)).join('')}
         </div>
-        <div class="evaporation-rates">
-            ${instrument.current.map(reading => `<div data-evap-key="${instrument.name}-${reading.cryogen}"></div>`).join('')}
-        </div>
     `;
 
     card.innerHTML = headerHTML + readingsHTML;
@@ -150,16 +152,15 @@ function createInstrumentCard(instrument) {
  */
 function createReadingElement(reading) {
     const timestamp = new Date(reading.timestamp);
-    const formattedTime = timestamp.toLocaleString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit'
-    });
+    const year = timestamp.getFullYear();
+    const month = String(timestamp.getMonth() + 1).padStart(2, '0');
+    const day = String(timestamp.getDate()).padStart(2, '0');
+    const hour = String(timestamp.getHours()).padStart(2, '0');
+    const minute = String(timestamp.getMinutes()).padStart(2, '0');
+    const formattedTime = `${year}/${month}/${day} ${hour}:${minute}`;
 
     return `
-        <div class="cryogen-reading ${reading.status}">
+        <div class="cryogen-reading ${reading.status}" data-cryogen="${reading.cryogen}">
             <div class="reading-header">
                 <span class="cryogen-name">${reading.cryogen}</span>
                 <span class="reading-time">${formattedTime}</span>
@@ -173,8 +174,11 @@ function createReadingElement(reading) {
                     <div class="level-fill" style="width: ${reading.level}%"></div>
                 </div>
             </div>
-            <div class="status-indicator">
-                ${getStatusMessage(reading.status)}
+            <div class="status-footer">
+                <div class="status-indicator">
+                    ${getStatusMessage(reading.status)}
+                </div>
+                <div class="evaporation-rate" data-evap-key="${reading.cryogen}"></div>
             </div>
         </div>
     `;
@@ -187,7 +191,8 @@ function getStatusMessage(status) {
     const messages = {
         ok: '✓ Niveau normal',
         warning: '⚠ Niveau bas',
-        critical: '🚨 Niveau critique'
+        critical: '🚨 Niveau critique',
+        catastrophic: '🔥 Critique!'
     };
     return messages[status] || 'État inconnu';
 }
@@ -695,13 +700,20 @@ async function loadEvaporationRatesForDashboard() {
         });
 
         // Add rates to each cryogen card
-        document.querySelectorAll('[data-evap-key]').forEach(elem => {
-            const key = elem.dataset.evapKey;
-            const rate = rateMap[key];
-            if (rate !== undefined) {
-                const rateText = rate < 0 ? `${Math.abs(rate).toFixed(2)}%/jour ↓` : `${rate.toFixed(2)}%/jour ↑`;
-                const rateColor = rate < 0 ? 'color: #10b981' : 'color: #f59e0b';
-                elem.innerHTML = `<small style="${rateColor}">${rateText}</small>`;
+        document.querySelectorAll('.cryogen-reading').forEach(card => {
+            const instrument = card.closest('[data-instrument]');
+            const instrumentName = instrument?.getAttribute('data-instrument');
+            const cryogen = card.getAttribute('data-cryogen');
+
+            if (instrumentName && cryogen) {
+                const key = `${instrumentName}-${cryogen}`;
+                const rate = rateMap[key];
+                const rateEl = card.querySelector('.evaporation-rate');
+                if (rateEl && rate !== undefined) {
+                    const rateText = rate < 0 ? `${Math.abs(rate).toFixed(2)}%/jour ↓` : `${rate.toFixed(2)}%/jour ↑`;
+                    const rateColor = rate < 0 ? 'color: #10b981' : 'color: #f59e0b';
+                    rateEl.innerHTML = `<small style="${rateColor}">${rateText}</small>`;
+                }
             }
         });
     } catch (error) {
@@ -797,13 +809,12 @@ function updateInstrumentCard(instrumentName, reading) {
     const timeEl = readingEl.querySelector('.reading-time');
     if (timeEl) {
         const timestamp = new Date(reading.timestamp);
-        const formattedTime = timestamp.toLocaleString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            day: '2-digit',
-            month: '2-digit'
-        });
+        const year = timestamp.getFullYear();
+        const month = String(timestamp.getMonth() + 1).padStart(2, '0');
+        const day = String(timestamp.getDate()).padStart(2, '0');
+        const hour = String(timestamp.getHours()).padStart(2, '0');
+        const minute = String(timestamp.getMinutes()).padStart(2, '0');
+        const formattedTime = `${year}/${month}/${day} ${hour}:${minute}`;
         timeEl.textContent = formattedTime;
     }
 
