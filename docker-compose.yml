@@ -9,13 +9,17 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./cryodash_data:/app/data
+      - cryodash_data:/app/data
+      - cryodash_logs:/app/logs
+    env_file:
+      - .env
     environment:
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEBUG=False
-        - DATABASE_URL=sqlite:////app/data/cryodash.db
-      - DB_ECHO=False
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - DEBUG=${DEBUG:-False}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/cryodash.db}
+      - DB_ECHO=${DB_ECHO:-False}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -23,7 +27,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+    networks:
+      - cryodash-network
+    labels:
+      - "com.example.description=CryoDash - Cryogenic Level Monitoring"
+      - "com.example.version=0.1.0"
 
 volumes:
   cryodash_data:
     driver: local
+  cryodash_logs:
+    driver: local
+
+networks:
+  cryodash-network:
+    driver: bridge
