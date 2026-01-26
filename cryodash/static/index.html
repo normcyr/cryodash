@@ -9,7 +9,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>🧊 CryoDash</h1>
+            <div class="header-top">
+                <h1>🧊 CryoDash</h1>
+                <div id="connection-status" class="connection-status disconnected" title="État de connexion WebSocket">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Déconnecté</span>
+                </div>
+            </div>
             <p class="subtitle">Suivi en temps réel des niveaux de cryogènes RMN</p>
 
             <!-- Navigation tabs -->
@@ -140,6 +146,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="/static/websocket-client.js"></script>
     <script src="/static/script.js"></script>
 </body>
 </html>

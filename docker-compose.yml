@@ -10,12 +10,11 @@ services:
       - "8000:8000"
     volumes:
       - ./cryodash_data:/app/data
-      - ./cryodash.db:/app/cryodash.db
     environment:
       - HOST=0.0.0.0
       - PORT=8000
       - DEBUG=False
-      - DATABASE_URL=sqlite:////app/cryodash.db
+        - DATABASE_URL=sqlite:////app/data/cryodash.db
       - DB_ECHO=False
     restart: unless-stopped
     healthcheck:

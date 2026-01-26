@@ -117,11 +117,10 @@ def ensure_instrument_exists(db: Session, device: str, readings: list) -> None:
         },
     }
 
-    # Get the first cryogen from readings if available
-    cryogens_in_file = set(r["cryogen"] for r in readings)
-    cryogens_str = ",".join(sorted(cryogens_in_file)) if cryogens_in_file else "N2"
-
     device_config = config.get(device, {})
+
+    # Use predefined config cryogens, not inferred from current file
+    cryogens_str = device_config.get("cryogens", "N2")
 
     instrument = Instrument(
         name=device,
