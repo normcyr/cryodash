@@ -38,17 +38,21 @@ LOG_FILES = [
 def download_log_file(filename: str, local_path: Path) -> bool:
     """Download a log file from remote server."""
     url = f"{REMOTE_LOG_URL}{filename}"
+    logger.debug(f"Attempting to download {filename} from {url}")
     try:
+        logger.debug(f"Sending request to {url} with 30s timeout")
         response = requests.get(url, timeout=30)
         response.raise_for_status()
 
         with open(local_path, "w") as f:
             f.write(response.text)
 
+        logger.debug(f"File saved to {local_path} ({len(response.text)} bytes)")
         logger.info(f"Downloaded {filename} from {url}")
         return True
     except requests.RequestException as e:
-        logger.error(f"Failed to download {filename}: {e}")
+        logger.error(f"Failed to download {filename}: {e}", exc_info=True)
+        logger.debug(f"Download error type: {type(e).__name__}")
         return False
 
 
@@ -59,16 +63,22 @@ def sync_logs(db: Session = None) -> dict:
     Returns:
         dict: Summary of import results with counts
     """
+    logger.debug("sync_logs() called")
     start_time = get_local_time()
+    logger.debug(f"Sync started at {start_time}")
 
     # Initialize database if needed
     if db is None:
+        logger.debug("No database session provided, initializing...")
         init_db()
         db = SessionLocal()
+        logger.debug("Database session created")
 
     # Create temp directory for log files
     temp_dir = Path(__file__).parent.parent.parent / "temp_logs"
+    logger.debug(f"Using temp directory: {temp_dir}")
     temp_dir.mkdir(exist_ok=True)
+    logger.debug("Temp directory ready")
 
     results = {
         "timestamp": start_time.isoformat(),
@@ -85,16 +95,20 @@ def sync_logs(db: Session = None) -> dict:
             cryogen = log_config["cryogen"]
 
             local_path = temp_dir / filename
+            logger.debug(f"Processing {filename} ({device}/{cryogen})")
 
             # Download the file
             if not download_log_file(filename, local_path):
+                logger.debug(f"Skipping {filename} due to download failure")
                 results["files_failed"] += 1
                 results["details"].append({"file": filename, "status": "download_failed"})
                 continue
 
             # Parse and import
             try:
+                logger.debug(f"Parsing {filename}...")
                 readings = parse_log_file(local_path, device, cryogen)
+                logger.debug(f"Parsed {len(readings)} readings from {filename}")
 
                 if not readings:
                     logger.warning(f"No readings found in {filename}")
@@ -105,10 +119,14 @@ def sync_logs(db: Session = None) -> dict:
                     continue
 
                 # Ensure instrument exists
+                logger.debug(f"Ensuring instrument {device} exists in DB")
                 ensure_instrument_exists(db, device, readings)
+                logger.debug(f"Instrument {device} ready")
 
                 # Import readings
+                logger.debug(f"Importing {len(readings)} readings...")
                 imported_count = import_readings(db, readings)
+                logger.debug(f"Successfully imported {imported_count} readings")
 
                 results["total_imported"] += imported_count
                 results["files_processed"] += 1

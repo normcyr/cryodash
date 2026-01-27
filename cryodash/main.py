@@ -1,11 +1,13 @@
 """FastAPI application factory and main entry point."""
 
 import logging
+import logging.config
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -14,6 +16,48 @@ from cryodash.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION
 from cryodash.database import init_db
 from cryodash.scripts.sync_remote_logs import sync_logs
 
+# Configure logging with timestamp for ALL loggers (including uvicorn)
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "default": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "": {  # root logger
+            "handlers": ["default"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "uvicorn": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "uvicorn.access": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apscheduler": {
+            "handlers": ["default"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
+
+logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
 # Paths
@@ -21,25 +65,32 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 # Global scheduler
 scheduler = AsyncIOScheduler(timezone="America/Toronto")
+logger.debug("Scheduler timezone set to America/Toronto")
 
 
 async def sync_logs_task():
     """Async wrapper for log synchronization task."""
+    logger.debug("sync_logs_task triggered")
     try:
         logger.info("Starting scheduled log synchronization...")
         sync_logs()
+        logger.debug("Scheduled log synchronization completed successfully")
         logger.info("Log synchronization completed successfully")
     except Exception as e:
-        logger.error(f"Error during scheduled log sync: {e}")
+        logger.error(f"Error during scheduled log sync: {e}", exc_info=True)
+        logger.debug(f"Sync error details: {type(e).__name__}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage startup and shutdown events."""
     # Startup
+    logger.debug("Application startup: initializing database")
     init_db()
+    logger.debug("Database initialization complete")
 
     # Configure and start scheduler
+    logger.debug("Configuring APScheduler with sync_logs_task")
     scheduler.add_job(
         sync_logs_task,
         "interval",
@@ -49,7 +100,9 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
         misfire_grace_time=600,  # Allow up to 10 minutes grace for missed jobs
     )
+    logger.debug("Job added to scheduler")
     scheduler.start()
+    logger.debug("Scheduler started successfully")
     logger.info(
         "Log synchronization scheduler started (interval: 1 hour, timezone: America/Toronto)"
     )
@@ -57,7 +110,9 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    logger.debug("Application shutdown: stopping scheduler")
     scheduler.shutdown()
+    logger.debug("Scheduler stopped")
     logger.info("Log synchronization scheduler stopped")
 
 
@@ -69,6 +124,21 @@ def create_app() -> FastAPI:
         version=APP_VERSION,
         lifespan=lifespan,
     )
+
+    # Add middleware to log HTTP requests
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        """Log all HTTP requests with method, path, and response status."""
+        start_time = time.time()
+        logger.debug(f"→ {request.method} {request.url.path}")
+
+        response = await call_next(request)
+
+        process_time = time.time() - start_time
+        logger.info(
+            f"← {request.method} {request.url.path} {response.status_code} ({process_time:.3f}s)"
+        )
+        return response
 
     # Include API routes
     app.include_router(router)

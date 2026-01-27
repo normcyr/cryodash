@@ -1,5 +1,6 @@
 """API routes for CryoDash."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -25,29 +26,37 @@ from cryodash.models import (
 from cryodash.scripts.sync_remote_logs import sync_logs
 from cryodash.websocket import manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["api"])
 
 
 def _get_alert_status(device: str, cryogen: str, level: float) -> str:
     """Determine alert status based on threshold."""
+    logger.debug(f"Calculating alert status for {device}/{cryogen}: {level}%")
     thresholds = ALERT_THRESHOLDS.get(device, {}).get(cryogen, {})
     catastrophic = thresholds.get("catastrophic", 0)
     critical = thresholds.get("critical", 0)
     warning = thresholds.get("warning", float("inf"))
 
     if level <= catastrophic:
-        return "catastrophic"
+        status = "catastrophic"
     elif level <= critical:
-        return "critical"
+        status = "critical"
     elif level <= warning:
-        return "warning"
-    return "ok"
+        status = "warning"
+    else:
+        status = "ok"
+
+    logger.debug(f"Alert status for {device}/{cryogen}: {status}")
+    return status
 
 
 @router.get("/instruments", response_model=list[InstrumentSchema])
 def get_instruments(db: Session = Depends(get_db)):
     """Get list of all instruments."""
+    logger.debug("GET /instruments - fetching all instruments")
     instruments = db.query(Instrument).all()
+    logger.debug(f"Found {len(instruments)} instruments")
     return instruments
 
 
