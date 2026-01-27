@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent / "static"
 
 # Global scheduler
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone="America/Toronto")
 
 
 async def sync_logs_task():
@@ -47,9 +47,12 @@ async def lifespan(app: FastAPI):
         id="sync_remote_logs",
         name="Sync remote cryogenic logs",
         replace_existing=True,
+        misfire_grace_time=600,  # Allow up to 10 minutes grace for missed jobs
     )
     scheduler.start()
-    logger.info("Log synchronization scheduler started (interval: 1 hour)")
+    logger.info(
+        "Log synchronization scheduler started (interval: 1 hour, timezone: America/Toronto)"
+    )
 
     yield
 

@@ -234,10 +234,17 @@ def sync_logs_endpoint():
 @router.get("/sync-status")
 def sync_status():
     """Get information about the scheduled sync."""
+    from cryodash.main import scheduler
+
+    job = scheduler.get_job("sync_remote_logs")
+    next_run = job.next_run_time if job else None
+
     return {
-        "status": "running",
+        "status": "running" if scheduler.running else "stopped",
         "schedule": "Every 1 hour",
-        "next_sync": "Scheduled automatically at startup",
+        "timezone": "America/Toronto (ET)",
+        "next_sync": str(next_run) if next_run else "Not scheduled",
+        "job_enabled": job is not None,
         "manual_sync_endpoint": "POST /api/sync-logs",
     }
 
