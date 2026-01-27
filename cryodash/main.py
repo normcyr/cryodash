@@ -54,6 +54,11 @@ LOGGING_CONFIG = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "watchfiles": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
