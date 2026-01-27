@@ -20,6 +20,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/cryodash.db}
       - DB_ECHO=${DB_ECHO:-False}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - TZ=America/Toronto
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]

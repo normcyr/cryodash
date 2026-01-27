@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from sqlalchemy.orm import Session
@@ -13,6 +14,15 @@ from cryodash.models import SyncHistory
 from cryodash.scripts.import_logs import ensure_instrument_exists, import_readings, parse_log_file
 
 logger = logging.getLogger(__name__)
+
+# Timezone for Eastern Time
+EASTERN = ZoneInfo("America/Toronto")
+
+
+def get_local_time():
+    """Get current time in Eastern timezone."""
+    return datetime.now(EASTERN)
+
 
 # Remote server URL
 REMOTE_LOG_URL = "http://airen.bcm.umontreal.ca/biostruct/logs/"
@@ -49,7 +59,7 @@ def sync_logs(db: Session = None) -> dict:
     Returns:
         dict: Summary of import results with counts
     """
-    start_time = datetime.now()
+    start_time = get_local_time()
 
     # Initialize database if needed
     if db is None:
@@ -123,7 +133,7 @@ def sync_logs(db: Session = None) -> dict:
         # Record sync in database
         sync_record = SyncHistory(
             started_at=start_time,
-            completed_at=datetime.now(),
+            completed_at=get_local_time(),
             status=(
                 "success"
                 if results["files_failed"] == 0
@@ -143,7 +153,7 @@ def sync_logs(db: Session = None) -> dict:
         logger.error(f"Sync failed: {e}")
         sync_record = SyncHistory(
             started_at=start_time,
-            completed_at=datetime.now(),
+            completed_at=get_local_time(),
             status="failed",
             total_imported=results.get("total_imported", 0),
             files_processed=results.get("files_processed", 0),
