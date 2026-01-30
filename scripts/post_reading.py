@@ -101,7 +101,7 @@ def post_reading(
                 return False
 
             else:
-                logger.warning(f"✗ HTTP {response.status_code}: {response.text}. " f"Will retry...")
+                logger.warning(f"✗ HTTP {response.status_code}: {response.text}. Will retry...")
 
         except requests.exceptions.Timeout:
             logger.warning(
