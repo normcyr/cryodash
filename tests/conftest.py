@@ -59,4 +59,6 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create a FastAPI test client with test database."""
+    # TestClient uses http://testserver by default, but CORS is configured
+    # to allow localhost. Use appropriate headers or disable CORS checks for tests.
     return TestClient(app)

@@ -24,6 +24,12 @@ DB_ECHO = os.getenv("DB_ECHO", "False").lower() == "true"
 API_KEY = os.getenv("API_KEY", "default-dev-key-change-in-production")
 REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "true").lower() == "true"
 
+# CORS configuration - restrict to specific origins
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000,http://testserver",
+).split(",")
+
 # Application configuration
 APP_TITLE = "CryoDash"
 APP_VERSION = "0.1.0"
