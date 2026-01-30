@@ -123,6 +123,7 @@ API_KEY=your-secure-api-key-here
 ```
 
 **Développement local :** Dans un environnement de dev, vous pouvez désactiver l'authentification :
+
 ```bash
 REQUIRE_API_KEY=false
 ```
