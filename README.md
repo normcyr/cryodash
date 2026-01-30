@@ -17,8 +17,10 @@ Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide 
 - 🔄 Synchronisation **automatique toutes les heures** depuis serveur HTTP
 - ⚙️ **Section Admin** : contrôle sync, statistiques BD, historique
 - 📱 API REST complète pour accès aux données
+- � **Sécurité avancée** : Authentification API, rate limiting, headers HTTPS, analyse sécurité
 - 💾 Base de données SQLite intégrée
 - 🎨 Interface modern dark theme responsive
+- 🛠️ **Outils modernes** : uv pour gestion paquets, prek pour hooks pre-commit, bandit pour sécurité
 
 ## Appareils supportés
 
@@ -45,7 +47,7 @@ Accessible sur: `http://localhost:8000`
 #### Prérequis
 
 - Python 3.9 ou plus récent
-- pip ou uv
+- uv (recommandé) ou pip
 
 #### Étapes d'installation
 
@@ -56,25 +58,33 @@ git clone https://github.com/normcyr/cryodash.git
 cd cryodash
 ```
 
-1. Créer un environnement virtuel :
+1. Installer uv (optionnel mais recommandé) :
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
-# ou
-venv\Scripts\activate  # Windows
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 1. Installer les dépendances :
 
 ```bash
+# Avec uv (recommandé)
+uv pip install -e .
+uv pip install -e .[dev]
+
+# Ou avec pip
 pip install -e .
+pip install -e ".[dev]"
 ```
 
-1. Pour le développement :
+1. Installer les hooks pre-commit pour la sécurité :
 
 ```bash
-pip install -e ".[dev]"
+# Installer prek
+pip install prek  # ou uv pip install prek
+
+# Configurer hooks
+prek install
+prek install-hooks
 ```
 
 ## Utilisation
