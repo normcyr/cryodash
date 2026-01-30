@@ -5,6 +5,7 @@ import logging.config
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from fastapi import FastAPI, Request
@@ -192,8 +193,9 @@ def create_app() -> FastAPI:
     )
 
     # Security middleware: Trusted hosts (prevents Host header attacks)
-    # Include testserver for pytest compatibility
-    trusted_hosts = ALLOWED_ORIGINS + ["localhost", "127.0.0.1", "testserver"]
+    # Extract hostnames from ALLOWED_ORIGINS URLs
+    trusted_hosts = [urlparse(origin).netloc or origin for origin in ALLOWED_ORIGINS]
+    trusted_hosts += ["localhost", "127.0.0.1", "testserver"]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
     # Security middleware: HTTPS headers
