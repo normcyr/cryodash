@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import and_, desc
@@ -88,22 +88,25 @@ def get_instrument_detail(name: str, db: Session = Depends(get_db)):
         )
 
         if latest:
-            status = _get_alert_status(name, cryogen, float(latest.level))
+            level = cast(float, latest.level)
+            status = _get_alert_status(name, cryogen, level)
             current_readings.append(
                 CryogenCurrentSchema(
                     cryogen=cryogen,
-                    level=float(latest.level),
+                    level=level,
                     timestamp=datetime.fromisoformat(latest.timestamp.isoformat()),
                     status=status,
                 )
             )
 
     return InstrumentDetailSchema(
-        id=int(instrument.id) if instrument.id else 0,
-        name=str(instrument.name),
-        frequency=str(instrument.frequency),
-        description=str(instrument.description) if instrument.description else None,
-        cryogens=str(instrument.cryogens),
+        id=cast(int, instrument.id) or 0,
+        name=cast(str, instrument.name),
+        frequency=cast(str, instrument.frequency),
+        description=cast(str, instrument.description)
+        if instrument.description is not None
+        else None,  # type: ignore
+        cryogens=cast(str, instrument.cryogens),
         current=current_readings,
         created_at=datetime.fromisoformat(instrument.created_at.isoformat()),
         updated_at=datetime.fromisoformat(instrument.updated_at.isoformat()),
@@ -136,11 +139,12 @@ def get_instrument_current(name: str, db: Session = Depends(get_db)):
         )
 
         if latest:
-            status = _get_alert_status(name, cryogen, float(latest.level))
+            level = cast(float, latest.level)
+            status = _get_alert_status(name, cryogen, level)
             current_readings.append(
                 CryogenCurrentSchema(
                     cryogen=cryogen,
-                    level=float(latest.level),
+                    level=level,
                     timestamp=datetime.fromisoformat(latest.timestamp.isoformat()),
                     status=status,
                 )
@@ -212,20 +216,28 @@ async def create_reading(
         f"POST /readings - Creating reading for {reading.device}/{reading.cryogen}: {reading.level}%"
     )
 
-    # Validate instrument exists
+    # Get or create instrument
     instrument = db.query(Instrument).filter(Instrument.name == reading.device).first()
     if not instrument:
-        logger.warning(f"POST /readings - Unknown instrument: {reading.device}")
-        raise HTTPException(status_code=404, detail=f"Instrument {reading.device} not found")
-
-    # Validate cryogen is in instrument's cryogens list
-    valid_cryogens = [c.strip().upper() for c in instrument.cryogens.split(",")]
-    if reading.cryogen.upper() not in valid_cryogens:
-        logger.warning(f"POST /readings - Invalid cryogen {reading.cryogen} for {reading.device}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cryogen {reading.cryogen} not valid for {reading.device}",
+        logger.info(f"POST /readings - Creating new instrument: {reading.device}")
+        instrument = Instrument(
+            name=reading.device,
+            frequency="Unknown",  # Default frequency
+            cryogens=reading.cryogen.upper(),  # Start with this cryogen
         )
+        db.add(instrument)
+        db.flush()  # Flush to get the ID without committing
+    else:
+        # Validate cryogen is in instrument's cryogens list
+        valid_cryogens = [c.strip().upper() for c in instrument.cryogens.split(",")]
+        if reading.cryogen.upper() not in valid_cryogens:
+            logger.warning(
+                f"POST /readings - Invalid cryogen {reading.cryogen} for {reading.device}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cryogen {reading.cryogen} not valid for {reading.device}",
+            )
 
     # Create and save reading
     timestamp = reading.timestamp if reading.timestamp else datetime.now(timezone.utc)
@@ -245,20 +257,19 @@ async def create_reading(
 
     # Broadcast to connected WebSocket clients
     logger.debug(f"POST /readings - Broadcasting to WebSocket clients for {reading.device}")
+    device_str = cast(str, db_reading.device)
+    cryogen_str = cast(str, db_reading.cryogen)
+    level = cast(float, db_reading.level)
     await manager.broadcast(
         reading.device,
         {
             "type": "reading",
             "data": {
-                "device": str(db_reading.device),
-                "cryogen": str(db_reading.cryogen),
-                "level": float(db_reading.level),
+                "device": device_str,
+                "cryogen": cryogen_str,
+                "level": level,
                 "timestamp": db_reading.timestamp.isoformat(),
-                "status": _get_alert_status(
-                    str(db_reading.device),
-                    str(db_reading.cryogen),
-                    float(db_reading.level),
-                ),
+                "status": _get_alert_status(device_str, cryogen_str, level),
             },
         },
     )
@@ -388,11 +399,13 @@ def get_evaporation_rates(
     # Get all instruments
     instruments = db.query(Instrument).all()
     if device:
-        instruments = [i for i in instruments if i.name == device]
+        instruments = [i for i in instruments if i.name == device]  # type: ignore
 
     for instrument in instruments:
         # Parse cryogens
-        cryogens = instrument.cryogens.split(",") if instrument.cryogens else []
+        cryogens = (
+            cast(str, instrument.cryogens).split(",") if instrument.cryogens is not None else []
+        )  # type: ignore
 
         for cryogen in cryogens:
             cryogen = cryogen.strip().upper()
@@ -425,9 +438,9 @@ def get_evaporation_rates(
             last_refill_timestamp = readings[0].timestamp
 
             for i in range(1, len(readings)):
-                level_increase = readings[i].level - readings[i - 1].level
+                level_increase = cast(float, readings[i].level) - cast(float, readings[i - 1].level)
                 # Detect refill if increase > threshold and not just measurement noise
-                if level_increase > refill_threshold:
+                if level_increase > refill_threshold:  # type: ignore
                     last_refill_index = i
                     last_refill_timestamp = readings[i].timestamp
 
@@ -445,15 +458,17 @@ def get_evaporation_rates(
             if time_diff == 0:
                 continue
 
-            level_change = latest.level - oldest.level  # Negative = evaporation
+            level_change = cast(float, latest.level) - cast(
+                float, oldest.level
+            )  # Negative = evaporation
             rate_percent_per_day = (level_change / time_diff) * 24  # Normalize to per day
 
             # Create extended schema with refill info
             rate_data = {
                 "device": instrument.name,
                 "cryogen": cryogen,
-                "rate_percent_per_day": round(rate_percent_per_day, 2),
-                "last_24h_change": round(level_change, 2),
+                "rate_percent_per_day": round(rate_percent_per_day, 2),  # type: ignore
+                "last_24h_change": round(level_change, 2),  # type: ignore
                 "hours_calculated": round(time_diff, 1),
                 "latest_level": latest.level,
                 "oldest_level": oldest.level,
