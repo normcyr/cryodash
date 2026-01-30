@@ -23,12 +23,13 @@ jobs:
               run: |
                   python -m pip install --upgrade pip
                   pip install -e .[dev]
+                  pip install types-requests types-python-dateutil
 
             - name: Run all checks
               run: |
                   ruff check cryodash
                   ruff format cryodash --check
-                  mypy cryodash
+                  mypy cryodash --config-file=pyproject.toml
 
             - name: Build distribution
               run: |
