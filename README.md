@@ -106,6 +106,84 @@ curl -X POST http://localhost:8000/api/sync-logs
 # Ou via le bouton Admin du dashboard
 ```
 
+## Sécurité & Authentification
+
+CryoDash protège les endpoints de mutation (POST) avec une **authentification par clé API** via en-tête HTTP.
+
+### Configuration
+
+Les variables d'environnement contrôlent l'authentification :
+
+```bash
+# Activer/désactiver l'authentification (défaut: true en production)
+REQUIRE_API_KEY=true
+
+# Clé API secrète (en production: variable d'environnement sécurisée)
+API_KEY=your-secure-api-key-here
+```
+
+**Développement local :** Dans un environnement de dev, vous pouvez désactiver l'authentification :
+```bash
+REQUIRE_API_KEY=false
+```
+
+### Endpoints protégés
+
+Les endpoints suivants **nécessitent une authentification** :
+
+- `POST /api/readings` - Créer une lecture
+- `POST /api/instruments` - Créer un appareil
+- `POST /api/sync-logs` - Déclencher une synchronisation manuelle
+
+### Utilisation de l'API avec authentification
+
+Fournissez votre clé API dans l'en-tête `X-API-Key` :
+
+```bash
+# Créer une lecture avec authentification
+curl -X POST http://localhost:8000/api/readings \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secure-api-key-here" \
+  -d '{
+    "instrument_name": "neo600",
+    "level": 75.5,
+    "cryogen": "N2",
+    "timestamp": "2024-12-19T14:30:00Z"
+  }'
+
+# Créer un appareil
+curl -X POST http://localhost:8000/api/instruments \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-secure-api-key-here" \
+  -d '{
+    "name": "neo600",
+    "description": "Imageur 600 MHz"
+  }'
+
+# Déclencher une synchronisation manuelle
+curl -X POST http://localhost:8000/api/sync-logs \
+  -H "X-API-Key: your-secure-api-key-here"
+```
+
+### Validation des données
+
+L'API valide les valeurs soumises :
+
+- **Level (niveau)** : Doit être entre 0 et 100% inclus
+  - ❌ `level: -5` → Erreur 422
+  - ❌ `level: 105` → Erreur 422
+  - ✅ `level: 75.5` → Accepté
+
+### Production (Render)
+
+Sur Render, la clé API est stockée dans un **groupe d'environnement sécurisé** :
+
+1. Créer le groupe `cryodash-env` dans Render Dashboard
+2. Ajouter `API_KEY` avec votre clé secrète
+3. La variable `REQUIRE_API_KEY=true` activera automatiquement la validation
+
+**Note :** Ne jamais commiter la clé API dans le repository. Toujours utiliser les variables d'environnement de production.
+
 ### Importer les données des logs (mode local)
 
 ```bash

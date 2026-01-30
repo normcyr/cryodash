@@ -20,6 +20,10 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 # Database configuration
 DB_ECHO = os.getenv("DB_ECHO", "False").lower() == "true"
 
+# Security configuration
+API_KEY = os.getenv("API_KEY", "default-dev-key-change-in-production")
+REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "true").lower() == "true"
+
 # Application configuration
 APP_TITLE = "CryoDash"
 APP_VERSION = "0.1.0"

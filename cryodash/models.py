@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 from sqlalchemy.sql import func
 
@@ -77,7 +77,7 @@ class CryogenReadingCreateSchema(BaseModel):
 
     device: str
     cryogen: str
-    level: float
+    level: float = Field(ge=0.0, le=100.0, description="Level percentage (0-100%)")
     timestamp: Optional[datetime] = None
 
 
