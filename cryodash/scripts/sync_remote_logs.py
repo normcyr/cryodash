@@ -56,7 +56,7 @@ def download_log_file(filename: str, local_path: Path) -> bool:
         return False
 
 
-def sync_logs(db: Session = None) -> dict:
+def sync_logs(db: Session | None = None) -> dict:
     """
     Download and import all log files from remote server.
 

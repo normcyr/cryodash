@@ -88,22 +88,22 @@ def get_instrument_detail(name: str, db: Session = Depends(get_db)):
         )
 
         if latest:
-            status = _get_alert_status(name, cryogen, latest.level)
+            status = _get_alert_status(name, cryogen, float(latest.level))
             current_readings.append(
                 CryogenCurrentSchema(
                     cryogen=cryogen,
-                    level=latest.level,
+                    level=float(latest.level),
                     timestamp=latest.timestamp,
                     status=status,
                 )
             )
 
     return InstrumentDetailSchema(
-        id=instrument.id,
-        name=instrument.name,
-        frequency=instrument.frequency,
-        description=instrument.description,
-        cryogens=instrument.cryogens,
+        id=int(instrument.id) if instrument.id else 0,
+        name=str(instrument.name),
+        frequency=str(instrument.frequency),
+        description=str(instrument.description) if instrument.description else None,
+        cryogens=str(instrument.cryogens),
         current=current_readings,
         created_at=instrument.created_at,
         updated_at=instrument.updated_at,
@@ -136,11 +136,11 @@ def get_instrument_current(name: str, db: Session = Depends(get_db)):
         )
 
         if latest:
-            status = _get_alert_status(name, cryogen, latest.level)
+            status = _get_alert_status(name, cryogen, float(latest.level))
             current_readings.append(
                 CryogenCurrentSchema(
                     cryogen=cryogen,
-                    level=latest.level,
+                    level=float(latest.level),
                     timestamp=latest.timestamp,
                     status=status,
                 )
@@ -344,16 +344,17 @@ def get_stats(db: Session = Depends(get_db)):
     oldest = db.query(CryogenReading).order_by(CryogenReading.timestamp).first()
     oldest_timestamp = oldest.timestamp if oldest else None
 
+    latest_sync = None
+    sync_record = db.query(SyncHistory).order_by(desc(SyncHistory.completed_at)).first()
+    if sync_record:
+        latest_sync = sync_record.completed_at
+
     return {
         "total_readings": total_readings,
         "total_instruments": total_instruments,
         "latest_reading_timestamp": latest_timestamp,
         "oldest_reading_timestamp": oldest_timestamp,
-        "latest_sync": (
-            db.query(SyncHistory).order_by(desc(SyncHistory.completed_at)).first().completed_at
-            if db.query(SyncHistory).count() > 0
-            else None
-        ),
+        "latest_sync": latest_sync,
     }
 
 
