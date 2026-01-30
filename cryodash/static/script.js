@@ -540,6 +540,10 @@ async function triggerManualSync() {
                     <li>Fichiers échoués: ${data.files_failed}</li>
                 </ul>
             `;
+        } else if (response.status === 429) {
+            // Rate limited
+            resultDiv.className = 'sync-result error';
+            resultDiv.textContent = `⏱️ ${data.detail}`;
         } else {
             resultDiv.className = 'sync-result error';
             resultDiv.textContent = `Erreur: ${data.detail}`;

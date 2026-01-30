@@ -30,6 +30,10 @@ from cryodash.websocket import manager
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["api"])
 
+# Rate limiting for manual sync (10 minute cooldown)
+SYNC_COOLDOWN_MINUTES = 10
+_last_manual_sync_time: Optional[datetime] = None
+
 
 def _get_alert_status(device: str, cryogen: str, level: float) -> str:
     """Determine alert status based on threshold."""
@@ -305,9 +309,31 @@ def health_check():
 
 
 @router.post("/sync-logs")
-def sync_logs_endpoint(_: str = Depends(verify_api_key)):
-    """Manually trigger log synchronization from remote server."""
+def sync_logs_endpoint():
+    """Manually trigger log synchronization from remote server.
+
+    Note: Not authenticated to allow sync from dashboard UI.
+    Rate limited to 1 sync per 10 minutes to avoid overloading the remote server.
+    The sync operation reads from a trusted internal HTTP source only.
+    """
+    global _last_manual_sync_time
+
+    now = datetime.now(timezone.utc)
+
+    # Check rate limit
+    if _last_manual_sync_time is not None:
+        time_since_last_sync = now - _last_manual_sync_time
+        cooldown = timedelta(minutes=SYNC_COOLDOWN_MINUTES)
+
+        if time_since_last_sync < cooldown:
+            remaining_seconds = int((cooldown - time_since_last_sync).total_seconds())
+            raise HTTPException(
+                status_code=429,  # Too Many Requests
+                detail=f"Sync is rate limited. Please wait {remaining_seconds} seconds before trying again.",
+            )
+
     try:
+        _last_manual_sync_time = now
         results = sync_logs()
         return {
             "status": "success",
