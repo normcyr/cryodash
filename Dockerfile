@@ -1,26 +1,29 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_COMPILE_BYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies and uv
+RUN apk add --no-cache \
     gcc \
+    musl-dev \
     curl \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
+
+# Add uv to PATH
+ENV PATH="/root/.local/bin:$PATH"
 
 # Copy project files
 COPY pyproject.toml LICENSE README.md ./
 COPY cryodash ./cryodash
 
-# Install Python dependencies
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -e .
+# Install Python dependencies with uv
+RUN uv pip install --system -e .
 
 # Create data and logs directories
 RUN mkdir -p /app/data /app/logs
