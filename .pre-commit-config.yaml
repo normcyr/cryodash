@@ -23,7 +23,6 @@ repos:
         entry: pytest tests/ -v --tb=short
         language: system
         types: [python]
-        stages: [commit]
         pass_filenames: false
         always_run: true
 
