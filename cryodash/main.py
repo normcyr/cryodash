@@ -70,9 +70,24 @@ LOGGING_CONFIG = {
             "level": "INFO",
             "propagate": False,
         },
+        "uvicorn.error": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "uvicorn.server": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "uvicorn.access": {
             "handlers": ["default"],
             "level": "WARNING",
+            "propagate": False,
+        },
+        "starlette": {
+            "handlers": ["default"],
+            "level": "INFO",
             "propagate": False,
         },
         "apscheduler.scheduler": {
