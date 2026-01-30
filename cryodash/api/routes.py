@@ -181,11 +181,53 @@ def get_instrument_history(
 
 
 @router.post("/readings", response_model=CryogenReadingSchema)
-def create_reading(
+async def create_reading(
     reading: CryogenReadingCreateSchema,
     db: Session = Depends(get_db),
 ):
-    """Create a new cryogenic reading."""
+    """
+    Create a new cryogenic reading directly from instruments.
+
+    This endpoint allows instruments to POST their readings directly to CryoDash
+    instead of waiting for the hourly sync from the remote server.
+    Readings are stored in the database and broadcast to connected WebSocket clients.
+
+    Args:
+        reading: The cryogenic reading data (device, cryogen, level, timestamp)
+        db: Database session
+
+    Returns:
+        The created CryogenReading object
+
+    Example:
+        POST /api/readings
+        {
+            "device": "neo600",
+            "cryogen": "N2",
+            "level": 87.5,
+            "timestamp": "2026-01-30T11:15:00Z"
+        }
+    """
+    logger.debug(
+        f"POST /readings - Creating reading for {reading.device}/{reading.cryogen}: {reading.level}%"
+    )
+
+    # Validate instrument exists
+    instrument = db.query(Instrument).filter(Instrument.name == reading.device).first()
+    if not instrument:
+        logger.warning(f"POST /readings - Unknown instrument: {reading.device}")
+        raise HTTPException(status_code=404, detail=f"Instrument {reading.device} not found")
+
+    # Validate cryogen is in instrument's cryogens list
+    valid_cryogens = [c.strip().upper() for c in instrument.cryogens.split(",")]
+    if reading.cryogen.upper() not in valid_cryogens:
+        logger.warning(f"POST /readings - Invalid cryogen {reading.cryogen} for {reading.device}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cryogen {reading.cryogen} not valid for {reading.device}",
+        )
+
+    # Create and save reading
     timestamp = reading.timestamp if reading.timestamp else datetime.now(timezone.utc)
     db_reading = CryogenReading(
         device=reading.device,
@@ -196,6 +238,29 @@ def create_reading(
     db.add(db_reading)
     db.commit()
     db.refresh(db_reading)
+
+    logger.debug(
+        f"POST /readings - Reading saved successfully: {reading.device}/{reading.cryogen} = {reading.level}%"
+    )
+
+    # Broadcast to connected WebSocket clients
+    logger.debug(f"POST /readings - Broadcasting to WebSocket clients for {reading.device}")
+    await manager.broadcast(
+        reading.device,
+        {
+            "type": "reading",
+            "data": {
+                "device": db_reading.device,
+                "cryogen": db_reading.cryogen,
+                "level": db_reading.level,
+                "timestamp": db_reading.timestamp.isoformat(),
+                "status": _get_alert_status(
+                    db_reading.device, db_reading.cryogen, db_reading.level
+                ),
+            },
+        },
+    )
+
     return db_reading
 
 

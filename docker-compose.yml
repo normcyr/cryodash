@@ -17,7 +17,7 @@ services:
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8000}
       - DEBUG=${DEBUG:-False}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/cryodash.db}
+      - DATABASE_URL=sqlite:////app/data/cryodash.db
       - DB_ECHO=${DB_ECHO:-False}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
       - TZ=America/Toronto
