@@ -211,9 +211,9 @@ def create_app() -> FastAPI:
         # Disable XSS filter bypass
         response.headers["X-XSS-Protection"] = "1; mode=block"
         # Content Security Policy
-        response.headers[
-            "Content-Security-Policy"
-        ] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        )
         return response
 
     # Error handler: Mask stacktraces in production
