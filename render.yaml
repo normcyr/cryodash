@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cryodash
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn cryodash.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DATABASE_URL
+        value: sqlite:////var/data/cryodash.db
+      - key: DEBUG
+        value: "false"
+    healthCheckPath: /api/health
+    healthCheckInterval: 30
+    disk:
+      name: cryodash-data
+      mountPath: /var/data
+      sizeGB: 5
