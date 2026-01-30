@@ -96,6 +96,14 @@ GET     /api/evaporation-rate?hours=24      # Taux évaporation par cryogen
 - `hours` : Nombre d'heures d'historique (défaut: 24)
 - `limit` : Max enregistrements (défaut: 1000)
 
+**Authentification** :
+
+- Endpoints POST (mutation) nécessitent authentification par clé API
+- En-tête HTTP : `X-API-Key: <votre-clé>`
+- Protégés : POST /api/readings, POST /api/instruments, POST /api/sync-logs
+- Non protégés : Tous les GET (publiques en lecture)
+- Implémentation : Module `cryodash/security.py` avec dépendance FastAPI
+
 **Statuts d'alerte** :
 
 - `ok` : Au-dessus du seuil warning
@@ -205,9 +213,93 @@ DATABASE_URL         # SQLite par défaut
 HOST, PORT          # Serveur (127.0.0.1:8000)
 DEBUG               # Mode développement
 ALERT_THRESHOLDS    # Dict seuils par device/cryogen
+API_KEY             # Clé secrète pour authentification
+REQUIRE_API_KEY     # Bool activer/désactiver auth (défaut: true)
 ```
 
-**Seuils d'alerte** (modifiables dans config.py) :
+## Sécurité & Authentification
+
+CryoDash protège les endpoints de mutation avec une **authentification par clé API** via en-tête HTTP.
+
+### Architecture de sécurité
+
+**Fichier principal** : `cryodash/security.py`
+
+```python
+from fastapi import Header, Depends, HTTPException
+from cryodash.config import REQUIRE_API_KEY, API_KEY
+
+async def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
+    """
+    Dépendance FastAPI pour vérifier la clé API.
+    - En dev (REQUIRE_API_KEY=false) : retourne "dev-mode"
+    - En prod : valide x_api_key contre API_KEY
+    - Lève HTTPException 401 si manquante ou invalide
+    """
+    if not REQUIRE_API_KEY:
+        return "dev-mode"
+    if not x_api_key or x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return x_api_key
+```
+
+**Utilisation dans routes** :
+
+```python
+@router.post("/readings", response_model=CryogenReadingSchema)
+async def create_reading(
+    reading: CryogenReadingCreateSchema,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),  # ← Auth requise
+):
+    ...
+```
+
+### Endpoints protégés
+
+Ces endpoints **nécessitent l'en-tête `X-API-Key`** :
+
+- `POST /api/readings` - Créer une lecture
+- `POST /api/instruments` - Créer un appareil
+- `POST /api/sync-logs` - Déclencher synchronisation manuelle
+
+Tous les `GET` restent **publiques** (lecture seule).
+
+### Configuration en développement
+
+**Désactiver l'authentification** pour tests locaux :
+
+```bash
+# Via variable d'environnement
+export REQUIRE_API_KEY=false
+
+# Ou dans .env.example
+REQUIRE_API_KEY=false
+API_KEY=dev-key-unused
+```
+
+### Configuration en production (Render)
+
+1. Créer groupe d'environnement `cryodash-env` dans Render Dashboard
+2. Ajouter variable `API_KEY` avec clé secrète générée
+3. Render.yaml active : `REQUIRE_API_KEY=true`
+4. La clé n'est jamais dans le code source
+
+### Validation des données
+
+**Tous les endpoints POST** valident les données Pydantic :
+
+- `level` : Entre 0.0 et 100.0 inclus
+  - Rejet 422 si hors limites
+  - Validé avec `Field(ge=0.0, le=100.0)`
+
+**Ajouter des validations** :
+
+1. Modifier schema dans `cryodash/models.py` avec `Field()`
+2. Exemple : `level: float = Field(ge=0.0, le=100.0, description="...")`
+3. FastAPI auto-rejet 422 si invalide
+
+### Seuils d'alerte
 
 - Neo600 N2 : warning 25%, critical 10%
 - Neo700 N2 : warning 25%, critical 10%

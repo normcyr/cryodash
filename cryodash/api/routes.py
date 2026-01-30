@@ -24,6 +24,7 @@ from cryodash.models import (
     SyncHistorySchema,
 )
 from cryodash.scripts.sync_remote_logs import sync_logs
+from cryodash.security import verify_api_key
 from cryodash.websocket import manager
 
 logger = logging.getLogger(__name__)
@@ -188,6 +189,7 @@ def get_instrument_history(
 async def create_reading(
     reading: CryogenReadingCreateSchema,
     db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
     """
     Create a new cryogenic reading directly from instruments.
@@ -281,6 +283,7 @@ async def create_reading(
 def create_instrument(
     instrument: InstrumentCreateSchema,
     db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
     """Create a new instrument."""
     db_instrument = Instrument(
@@ -302,7 +305,7 @@ def health_check():
 
 
 @router.post("/sync-logs")
-def sync_logs_endpoint():
+def sync_logs_endpoint(_: str = Depends(verify_api_key)):
     """Manually trigger log synchronization from remote server."""
     try:
         results = sync_logs()

@@ -13,6 +13,10 @@ services:
         value: sqlite:////var/data/cryodash.db
       - key: DEBUG
         value: "false"
+      - key: REQUIRE_API_KEY
+        value: "true"
+      - key: API_KEY
+        fromGroup: cryodash-env
     healthCheckPath: /api/health
     healthCheckInterval: 30
     disk:
