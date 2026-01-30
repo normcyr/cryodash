@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 import requests
@@ -56,7 +57,7 @@ def download_log_file(filename: str, local_path: Path) -> bool:
         return False
 
 
-def sync_logs(db: Session | None = None) -> dict:
+def sync_logs(db: Optional[Session] = None) -> dict:
     """
     Download and import all log files from remote server.
 

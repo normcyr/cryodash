@@ -93,7 +93,7 @@ def get_instrument_detail(name: str, db: Session = Depends(get_db)):
                 CryogenCurrentSchema(
                     cryogen=cryogen,
                     level=float(latest.level),
-                    timestamp=latest.timestamp,
+                    timestamp=datetime.fromisoformat(latest.timestamp.isoformat()),
                     status=status,
                 )
             )
@@ -105,8 +105,8 @@ def get_instrument_detail(name: str, db: Session = Depends(get_db)):
         description=str(instrument.description) if instrument.description else None,
         cryogens=str(instrument.cryogens),
         current=current_readings,
-        created_at=instrument.created_at,
-        updated_at=instrument.updated_at,
+        created_at=datetime.fromisoformat(instrument.created_at.isoformat()),
+        updated_at=datetime.fromisoformat(instrument.updated_at.isoformat()),
     )
 
 
@@ -141,7 +141,7 @@ def get_instrument_current(name: str, db: Session = Depends(get_db)):
                 CryogenCurrentSchema(
                     cryogen=cryogen,
                     level=float(latest.level),
-                    timestamp=latest.timestamp,
+                    timestamp=datetime.fromisoformat(latest.timestamp.isoformat()),
                     status=status,
                 )
             )
@@ -250,12 +250,14 @@ async def create_reading(
         {
             "type": "reading",
             "data": {
-                "device": db_reading.device,
-                "cryogen": db_reading.cryogen,
-                "level": db_reading.level,
+                "device": str(db_reading.device),
+                "cryogen": str(db_reading.cryogen),
+                "level": float(db_reading.level),
                 "timestamp": db_reading.timestamp.isoformat(),
                 "status": _get_alert_status(
-                    db_reading.device, db_reading.cryogen, db_reading.level
+                    str(db_reading.device),
+                    str(db_reading.cryogen),
+                    float(db_reading.level),
                 ),
             },
         },
