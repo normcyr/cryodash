@@ -9,18 +9,25 @@ Merci de contribuer à CryoDash! Ce guide vous aidera à mettre en place votre e
 ```bash
 git clone https://github.com/yourusername/cryodash.git
 cd cryodash
-python -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
+
+# Installer uv (recommandé)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Installer dépendances
+uv pip install -e .
+uv pip install -e .[dev]
 ```
 
 ### 2. Installer les hooks pre-commit
 
 ```bash
-pre-commit install
+# Installer prek (alternative moderne à pre-commit)
+pip install prek  # ou uv pip install prek
+prek install
+prek install-hooks
 ```
 
-Cela active les vérifications automatiques avant chaque commit.
+Cela active les vérifications automatiques avant chaque commit, incluant l'analyse de sécurité avec bandit.
 
 ## 📋 Avant de committer
 
@@ -37,9 +44,9 @@ mypy cryodash --config-file mypy.ini
 pytest tests/ --cov=cryodash
 ```
 
-### Avec pre-commit (automatique)
+### Avec prek (automatique)
 
-Pre-commit s'exécute automatiquement avant `git commit`. Si une vérification échoue:
+Prek s'exécute automatiquement avant `git commit`. Si une vérification échoue:
 
 1. **Corrections automatiques** : Les outils auto-fixent ce qu'ils peuvent
 2. **Stage les changements** : `git add .`
@@ -48,7 +55,20 @@ Pre-commit s'exécute automatiquement avant `git commit`. Si une vérification �
 Ou forcez le commit:
 
 ```bash
-git commit --no-verify  # À éviter!
+git commit --no-verify -m "message"
+```
+
+### Vérifications manuelles
+
+```bash
+# Vérifier tous les fichiers
+prek run --all-files
+
+# Vérifier seulement les fichiers modifiés
+prek run
+
+# Mettre à jour les hooks
+prek auto-update
 ```
 
 ## 🧪 Tests
@@ -120,10 +140,12 @@ Les PR doivent passer **tous les checks** avant fusion.
 
 | Outil | Rôle | Config |
 |-------|------|--------|
+| **uv** | Gestion paquets rapide | - |
 | **ruff** | Lint + format | `pyproject.toml` |
 | **mypy** | Type checking | `mypy.ini` |
+| **bandit** | Analyse sécurité | `pyproject.toml` |
 | **pytest** | Tests + coverage | `pyproject.toml` |
-| **pre-commit** | Hooks git | `.pre-commit-config.yaml` |
+| **prek** | Hooks git | `.pre-commit-config.yaml` |
 | **GitHub Actions** | CI/CD | `.github/workflows/` |
 
 ## 🐛 Debugger

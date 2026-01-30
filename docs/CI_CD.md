@@ -12,8 +12,17 @@ CryoDash utilise GitHub Actions pour l'intégration continue (CI) avec deux work
 ### Installation des outils de développement
 
 ```bash
-# Installer les dépendances de développement
-pip install -e ".[dev]"
+# Installer uv (recommandé)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Installer les dépendances
+uv pip install -e .
+uv pip install -e .[dev]
+
+# Installer prek pour les hooks
+pip install prek  # ou uv pip install prek
+prek install
+prek install-hooks
 ```
 
 ### Exécuter les vérifications localement

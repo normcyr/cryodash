@@ -299,11 +299,108 @@ API_KEY=dev-key-unused
 2. Exemple : `level: float = Field(ge=0.0, le=100.0, description="...")`
 3. FastAPI auto-rejet 422 si invalide
 
+### Mesures de sécurité avancées
+
+En plus de l'authentification API, CryoDash implémente plusieurs couches de sécurité :
+
+#### Middleware de sécurité
+
+**Fichier** : `cryodash/main.py`
+
+- **CORS** : Contrôle accès cross-origin, origines configurables via `ALLOWED_ORIGINS`
+- **Trusted Hosts** : Prévention attaques Host header, accepte seulement hosts configurés
+- **Headers HTTPS** : HSTS, CSP, X-Frame-Options, etc. pour protection contre attaques web
+- **Rate Limiting** : Limite requêtes par IP avec slowapi (100 req/minute par défaut)
+
+#### Logging et monitoring
+
+- **Logs structurés** : JSON format en prod, masquage stacktraces erreurs
+- **Niveaux configurables** : `LOG_LEVEL` par module
+- **Masquage production** : Pas de détails sensibles en erreurs 500
+
+#### Hooks pre-commit pour sécurité
+
+**Outil** : `prek` (alternative Rust à pre-commit)
+
+- **Bandit** : Analyse statique sécurité Python, détecte vulnérabilités communes
+- **Configuration** : `.pre-commit-config.yaml` avec exclusions tests
+- **Installation** : `prek install` et `prek install-hooks`
+- **Exécution** : Automatique avant commit, ou manuel `prek run --all-files`
+
+#### Gestionnaire de paquets
+
+**Migration à uv** :
+
+- **Installation** : `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Utilisation** : `uv pip install -e .` pour dépendances principales
+- **Dev** : `uv pip install -e .[dev]` pour outils développement
+- **Avantages** : Plus rapide que pip, résolution dépendances optimisée
+
 ### Seuils d'alerte
 
 - Neo600 N2 : warning 25%, critical 10%
 - Neo700 N2 : warning 25%, critical 10%
 - Neo700 He : warning 20%, critical 5%
+
+## Outils de développement
+
+### Gestionnaire de paquets : uv
+
+CryoDash utilise `uv` pour une gestion rapide des dépendances Python.
+
+**Installation** :
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Utilisation** :
+
+```bash
+# Dépendances principales
+uv pip install -e .
+
+# Dépendances développement
+uv pip install -e .[dev]
+
+# Ajouter nouvelle dépendance
+uv pip install <package>
+```
+
+**Avantages** : Résolution dépendances ultra-rapide, environnements virtuels intégrés.
+
+### Hooks pre-commit : prek
+
+**Installation** :
+
+```bash
+pip install prek  # ou uv pip install prek
+prek install
+prek install-hooks
+```
+
+**Hooks configurés** :
+
+- **ruff** : Linting et formatage
+- **mypy** : Vérification types
+- **bandit** : Analyse sécurité Python
+- **pytest** : Tests automatiques
+- **Hooks généraux** : Trailing whitespace, YAML/JSON/TOML validation
+
+**Utilisation** :
+
+```bash
+# Vérifier tous les fichiers
+prek run --all-files
+
+# Vérifier fichiers modifiés
+prek run
+
+# Mettre à jour hooks
+prek auto-update
+```
+
+**Sécurité** : Bandit détecte automatiquement vulnérabilités avant commit.
 
 ## Conventions de code
 
