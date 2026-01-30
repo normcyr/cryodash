@@ -59,6 +59,23 @@ class SyncHistory(Base):
     details = Column(String(2000), nullable=True)  # JSON string with per-file results
 
 
+class AlertHistory(Base):
+    """Table for storing email alert history."""
+
+    __tablename__ = "alert_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device = Column(String(50), nullable=False, index=True)
+    cryogen = Column(String(10), nullable=False)
+    level = Column(Float, nullable=False)
+    alert_level = Column(String(20), nullable=False)  # "warning", "critical"
+    sent_at = Column(DateTime, nullable=False, index=True, default=func.now())
+    sent_successfully = Column(Integer, default=1)  # 1=success, 0=failed
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (Index("idx_device_cryogen_sent_at", "device", "cryogen", "sent_at"),)
+
+
 # Pydantic Schemas
 class CryogenReadingSchema(BaseModel):
     """Schema for cryogenic reading."""
@@ -140,6 +157,20 @@ class SyncHistorySchema(BaseModel):
     files_failed: int
     error_message: Optional[str] = None
     details: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlertHistorySchema(BaseModel):
+    """Schema for alert history record."""
+
+    id: int
+    device: str
+    cryogen: str
+    level: float
+    alert_level: str
+    sent_at: datetime
+    sent_successfully: bool
 
     model_config = ConfigDict(from_attributes=True)
 

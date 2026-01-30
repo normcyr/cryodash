@@ -5,6 +5,7 @@ import sys
 
 # Disable API key requirement for tests BEFORE importing the app
 os.environ["REQUIRE_API_KEY"] = "false"
+os.environ["ENABLE_EMAIL_ALERTS"] = "false"  # Disable email alerts in tests
 
 # Force reimport of config modules if they were already loaded
 if "cryodash.config" in sys.modules:

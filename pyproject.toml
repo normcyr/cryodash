@@ -34,6 +34,7 @@ dependencies = [
     "apscheduler>=3.10.0",
     "requests>=2.31.0",
     "slowapi>=0.1.9",
+    "sendgrid>=6.10.0",
 ]
 
 [project.optional-dependencies]

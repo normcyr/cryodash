@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from cryodash.config import ALERT_THRESHOLDS
 from cryodash.database import get_db
 from cryodash.models import (
+    AlertHistory,
+    AlertHistorySchema,
     CryogenCurrentSchema,
     CryogenReading,
     CryogenReadingCreateSchema,
@@ -536,3 +538,34 @@ async def websocket_readings(websocket: WebSocket, instrument_id: str):
     except Exception:
         manager.disconnect(websocket, instrument_id)
         raise
+
+
+@router.get("/alert-history", response_model=list[AlertHistorySchema])
+async def get_alert_history(
+    db: Session = Depends(get_db),
+    device: Optional[str] = Query(None),
+    cryogen: Optional[str] = Query(None),
+    alert_level: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=1000),
+) -> list[AlertHistorySchema]:
+    """
+    Get alert history, optionally filtered by device, cryogen, or alert level.
+
+    Query parameters:
+    - device: Filter by device name (e.g., "neo600")
+    - cryogen: Filter by cryogen type (e.g., "N2", "He")
+    - alert_level: Filter by alert level ("warning", "critical")
+    - limit: Maximum number of records (1-1000, default 100)
+    """
+    query = db.query(AlertHistory)
+
+    if device:
+        query = query.filter(AlertHistory.device == device.lower())
+    if cryogen:
+        query = query.filter(AlertHistory.cryogen == cryogen.upper())
+    if alert_level:
+        query = query.filter(AlertHistory.alert_level == alert_level.lower())
+
+    records = query.order_by(desc(AlertHistory.sent_at)).limit(limit).all()
+    logger.info(f"Retrieved {len(records)} alert history records")
+    return records

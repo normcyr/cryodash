@@ -30,6 +30,15 @@ ALLOWED_ORIGINS = os.getenv(
     "http://localhost:8000,http://127.0.0.1:8000,http://testserver",
 ).split(",")
 
+# Email alerts configuration
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "alerts@cryodash.local")
+ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "").split(",") if os.getenv("ALERT_EMAIL_TO") else []
+ALERT_COOLDOWN_HOURS = int(
+    os.getenv("ALERT_COOLDOWN_HOURS", 24)
+)  # Avoid duplicate alerts within 24h
+ENABLE_EMAIL_ALERTS = os.getenv("ENABLE_EMAIL_ALERTS", "false").lower() == "true"
+
 # Application configuration
 APP_TITLE = "CryoDash"
 APP_VERSION = "0.1.0"

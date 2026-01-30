@@ -5,6 +5,7 @@ import logging.config
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from fastapi import FastAPI, Request
@@ -16,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter  # type: ignore
 from slowapi.util import get_remote_address  # type: ignore
 
+from cryodash.alerts import check_cryogen_levels
 from cryodash.api.routes import router
 from cryodash.config import (
     ALLOWED_ORIGINS,
@@ -24,7 +26,7 @@ from cryodash.config import (
     APP_VERSION,
     DEBUG,
 )
-from cryodash.database import init_db
+from cryodash.database import SessionLocal, init_db
 from cryodash.scripts.sync_remote_logs import sync_logs
 
 # Configure logging - reduced verbosity for DEBUG, keep pertinent INFO
@@ -134,6 +136,16 @@ async def sync_logs_task():
         logger.error(f"Error during scheduled log sync: {e}", exc_info=True)
         logger.debug(f"Sync error details: {type(e).__name__}")
 
+    # Check cryogenic levels and send alerts if needed
+    logger.debug("Checking cryogenic levels for alerts...")
+    try:
+        db = SessionLocal()
+        check_cryogen_levels(db)
+        db.close()
+        logger.debug("Alert check completed")
+    except Exception as e:
+        logger.error(f"Error checking cryogenic levels: {e}", exc_info=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -192,8 +204,9 @@ def create_app() -> FastAPI:
     )
 
     # Security middleware: Trusted hosts (prevents Host header attacks)
-    # Include testserver for pytest compatibility
-    trusted_hosts = ALLOWED_ORIGINS + ["localhost", "127.0.0.1", "testserver"]
+    # Extract hostnames from ALLOWED_ORIGINS URLs
+    trusted_hosts = [urlparse(origin).netloc or origin for origin in ALLOWED_ORIGINS]
+    trusted_hosts += ["localhost", "127.0.0.1", "testserver"]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
     # Security middleware: HTTPS headers
