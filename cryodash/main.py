@@ -8,13 +8,22 @@ from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter  # type: ignore
 from slowapi.util import get_remote_address  # type: ignore
 
 from cryodash.api.routes import router
-from cryodash.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION
+from cryodash.config import (
+    ALLOWED_ORIGINS,
+    APP_DESCRIPTION,
+    APP_TITLE,
+    APP_VERSION,
+    DEBUG,
+)
 from cryodash.database import init_db
 from cryodash.scripts.sync_remote_logs import sync_logs
 
@@ -157,6 +166,72 @@ def create_app() -> FastAPI:
 
     # Add slowapi rate limiter
     app.state.limiter = limiter
+
+    # Security middleware: CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
+
+    # Security middleware: Trusted hosts (prevents Host header attacks)
+    # Include testserver for pytest compatibility
+    trusted_hosts = ALLOWED_ORIGINS + ["localhost", "127.0.0.1", "testserver"]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
+
+    # Security middleware: HTTPS headers
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        """Add security headers to all responses."""
+        response = await call_next(request)
+        # HSTS: Force HTTPS (production only)
+        if not DEBUG:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        # Disable XSS filter bypass
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        # Content Security Policy
+        response.headers[
+            "Content-Security-Policy"
+        ] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        return response
+
+    # Error handler: Mask stacktraces in production
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception):
+        """Handle all exceptions with appropriate error messages."""
+        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        if DEBUG:
+            # Development: return full error details
+            return JSONResponse(
+                status_code=500,
+                content={"detail": str(exc), "type": type(exc).__name__},
+            )
+        # Production: generic error message
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+
+    # Validation error handler
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        """Handle validation errors."""
+        logger.warning(f"Validation error: {exc}")
+        if DEBUG:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": exc.errors()},
+            )
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Invalid request data"},
+        )
 
     # Add middleware to log HTTP requests
     @app.middleware("http")
