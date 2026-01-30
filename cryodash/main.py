@@ -10,13 +10,15 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter  # type: ignore
+from slowapi.util import get_remote_address  # type: ignore
 
 from cryodash.api.routes import router
 from cryodash.config import APP_DESCRIPTION, APP_TITLE, APP_VERSION
 from cryodash.database import init_db
 from cryodash.scripts.sync_remote_logs import sync_logs
 
-# Configure logging with timestamp for ALL loggers (including uvicorn)
+# Configure logging - reduced verbosity for DEBUG, keep pertinent INFO
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -36,8 +38,23 @@ LOGGING_CONFIG = {
     "loggers": {
         "": {  # root logger
             "handlers": ["default"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": True,
+        },
+        "cryodash": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "cryodash.main": {
+            "handlers": ["default"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "cryodash.security": {
+            "handlers": ["default"],
+            "level": "INFO",
+            "propagate": False,
         },
         "uvicorn": {
             "handlers": ["default"],
@@ -46,17 +63,22 @@ LOGGING_CONFIG = {
         },
         "uvicorn.access": {
             "handlers": ["default"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "apscheduler.scheduler": {
+            "handlers": ["default"],
             "level": "INFO",
             "propagate": False,
         },
-        "apscheduler": {
+        "apscheduler.executors": {
             "handlers": ["default"],
-            "level": "DEBUG",
+            "level": "WARNING",
             "propagate": False,
         },
         "watchfiles": {
             "handlers": ["default"],
-            "level": "INFO",
+            "level": "WARNING",
             "propagate": False,
         },
     },
@@ -64,6 +86,9 @@ LOGGING_CONFIG = {
 
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
+
+# Rate limiter for slowapi
+limiter = Limiter(key_func=get_remote_address)
 
 # Paths
 STATIC_DIR = Path(__file__).parent / "static"
@@ -129,6 +154,9 @@ def create_app() -> FastAPI:
         version=APP_VERSION,
         lifespan=lifespan,
     )
+
+    # Add slowapi rate limiter
+    app.state.limiter = limiter
 
     # Add middleware to log HTTP requests
     @app.middleware("http")
