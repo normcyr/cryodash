@@ -69,10 +69,12 @@ def sync_logs(db: Optional[Session] = None) -> dict:
     logger.debug(f"Sync started at {start_time}")
 
     # Initialize database if needed
+    should_close_db = False
     if db is None:
         logger.debug("No database session provided, initializing...")
         init_db()
         db = SessionLocal()
+        should_close_db = True
         logger.debug("Database session created")
 
     # Create temp directory for log files
@@ -97,6 +99,7 @@ def sync_logs(db: Optional[Session] = None) -> dict:
 
             local_path = temp_dir / filename
             logger.debug(f"Processing {filename} ({device}/{cryogen})")
+            logger.debug(f"Database session active: {db is not None and db.is_active}")
 
             # Download the file
             if not download_log_file(filename, local_path):
@@ -185,7 +188,8 @@ def sync_logs(db: Optional[Session] = None) -> dict:
         raise
 
     finally:
-        db.close()
+        if should_close_db:
+            db.close()
 
     logger.info(
         f"Sync complete: {results['total_imported']} readings imported from {results['files_processed']} files"
