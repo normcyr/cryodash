@@ -6,7 +6,8 @@ let charts = {};  // Store multiple chart instances
 let instruments = [];  // Cache of instruments
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', async () => {
+
+async function cryodashInit() {
     setupPageNavigation();
     setupAdminControls();
     setupConnectionStatusIndicator();
@@ -14,7 +15,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadInstruments();
     // Setup WebSocket connections AFTER instruments are loaded
     setupWebSocketConnections();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', cryodashInit);
+} else {
+    cryodashInit();
+}
 
 /**
  * Setup page navigation tabs
@@ -280,6 +287,12 @@ async function loadCharts() {
  */
 async function loadSingleChart(device, cryogen, hours) {
     try {
+        // Check if Chart.js is loaded before attempting to create chart
+        if (typeof Chart === 'undefined') {
+            showError('Chart.js n\'a pas pu charger. Veuillez actualiser la page.');
+            return;
+        }
+
         const response = await fetch(
             `${API_URL}/instruments/${device}/history?cryogen=${cryogen}&hours=${hours}`
         );
@@ -310,6 +323,12 @@ async function loadSingleChart(device, cryogen, hours) {
  */
 async function loadDualCharts(device, cryogens, hours) {
     try {
+        // Check if Chart.js is loaded before attempting to create chart
+        if (typeof Chart === 'undefined') {
+            showError('Chart.js n\'a pas pu charger. Veuillez actualiser la page.');
+            return;
+        }
+
         // Fetch data for both cryogens in parallel
         const [n2Response, heResponse] = await Promise.all([
             fetch(`${API_URL}/instruments/${device}/history?cryogen=N2&hours=${hours}`),
@@ -346,6 +365,11 @@ async function loadDualCharts(device, cryogens, hours) {
  * Create a chart instance using Chart.js
  */
 function createChart(ctx, data, device, cryogen) {
+    // Verify Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        throw new Error('Chart.js library is not loaded. Please refresh the page.');
+    }
+
     const labels = data.map(d => {
         const date = new Date(d.timestamp);
         return date.toLocaleString('fr-FR', {
