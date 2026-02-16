@@ -136,3 +136,4 @@ dmypy.json
 cryodash.db
 logs/
 data/
+AGENT_INSTRUCTIONS.md
