@@ -28,13 +28,14 @@ RUN uv pip install --system -e .
 # Create data and logs directories
 RUN mkdir -p /app/data /app/logs
 
-# Copy entrypoint script
+# Copy entrypoint and healthcheck scripts
 COPY entrypoint.py /app/entrypoint.py
-RUN chmod +x /app/entrypoint.py
+COPY healthcheck.sh /app/healthcheck.sh
+RUN chmod +x /app/entrypoint.py /app/healthcheck.sh
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["curl", "-f", "http://localhost:8000/api/health"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD ["/app/healthcheck.sh"]
 
 # Expose port
 EXPOSE 8000
