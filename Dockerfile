@@ -28,6 +28,10 @@ RUN uv pip install --system -e .
 # Create data and logs directories
 RUN mkdir -p /app/data /app/logs
 
+# Copy and make entrypoint executable
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
@@ -35,5 +39,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Default command - run with uvicorn factory pattern
-CMD ["uvicorn", "cryodash.main:create_app", "--host", "0.0.0.0", "--port", "8000", "--factory"]
+# Run entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
