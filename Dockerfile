@@ -39,5 +39,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Run Python entrypoint
-ENTRYPOINT ["python3", "/app/entrypoint.py"]
+# Run Python entrypoint with shell to evaluate env vars
+CMD sh -c "python3 /app/entrypoint.py"
