@@ -268,6 +268,12 @@ def create_app() -> FastAPI:
     # Include API routes
     app.include_router(router)
 
+    # Simple health check BEFORE TrustedHost validation
+    @app.get("/api/health", include_in_schema=False)
+    async def health_check_early():
+        """Health check endpoint (public, no auth)."""
+        return {"status": "ok"}
+
     # Mount static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

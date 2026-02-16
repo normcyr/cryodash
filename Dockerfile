@@ -33,9 +33,9 @@ COPY entrypoint.py /app/entrypoint.py
 COPY healthcheck.sh /app/healthcheck.sh
 RUN chmod +x /app/entrypoint.py /app/healthcheck.sh
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD ["/app/healthcheck.sh"]
+# Health check disabled for now - Railway has issues with PORT env var in healthcheck
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+#     CMD ["/app/healthcheck.sh"]
 
 # Expose port
 EXPOSE 8000

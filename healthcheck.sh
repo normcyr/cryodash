@@ -7,6 +7,7 @@ RETRIES=3
 
 for i in $(seq 1 $RETRIES); do
   if curl -f -s -m $TIMEOUT "http://127.0.0.1:$PORT/api/health" > /dev/null; then
+    echo "Health check passed on attempt $i"
     exit 0
   fi
   if [ $i -lt $RETRIES ]; then
