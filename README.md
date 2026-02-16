@@ -24,8 +24,8 @@ Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide 
 
 ## Appareils supportés
 
-- **Neo600** : Imageur 600 MHz (Azote Liquide uniquement)
-- **Neo700** : Imageur 700 MHz (Azote Liquide + Hélium Liquide)
+- **Neo600** : Spectromètre RMN 600 MHz (Azote Liquide uniquement)
+- **Neo700** : Spectromètre RMN 700 MHz (Azote Liquide + Hélium Liquide)
 
 ## Installation
 
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8000/api/instruments \
   -H "X-API-Key: your-secure-api-key-here" \
   -d '{
     "name": "neo600",
-    "description": "Imageur 600 MHz"
+    "description": "Spectromètre RMN 600 MHz"
   }'
 
 # Déclencher une synchronisation manuelle

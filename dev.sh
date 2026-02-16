@@ -7,4 +7,4 @@ cd "$(dirname "$0")" || exit
 source .venv/bin/activate
 
 # Launch uvicorn with reload (excluding tests folder)
-python -m uvicorn cryodash.main:app --reload --reload-exclude="tests/*" --host 0.0.0.0 --port 8000
+python -m uvicorn cryodash.main:app --reload --reload-exclude="tests/*" --host 0.0.0.0 --port 8001
