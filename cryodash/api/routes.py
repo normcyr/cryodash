@@ -27,6 +27,7 @@ from cryodash.models import (
     SyncHistory,
     SyncHistorySchema,
 )
+from cryodash.scripts.migrate_logs_to_measurements import migrate_logs_to_measurements
 from cryodash.scripts.sync_remote_logs import sync_logs
 from cryodash.security import verify_api_key
 from cryodash.websocket import manager
@@ -351,6 +352,46 @@ def sync_logs_endpoint():
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}") from e
 
 
+@router.post("/admin/migrate-logs-to-measurements")
+def migrate_logs_endpoint(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+):
+    """
+    Migrate historical cryogenic log data to Measurement table.
+
+    Converts legacy CryogenReading format to new flexible Measurement schema.
+    This allows historical data to be viewed in the Measurements tab.
+
+    Args:
+        api_key: API key verification (required for admin operation)
+
+    Returns:
+        Migration statistics with import counts and error information
+
+    Example:
+        POST /api/admin/migrate-logs-to-measurements
+        Headers: X-API-Key: your-api-key
+    """
+    try:
+        logger.info("Starting migration of logs to Measurement table...")
+        stats = migrate_logs_to_measurements(db)
+
+        logger.info(
+            f"Migration complete: {stats['imported']} records imported, "
+            f"{stats['skipped']} skipped, {stats['errors']} errors"
+        )
+
+        return {
+            "status": "success",
+            "message": "Migration completed successfully",
+            "statistics": stats,
+        }
+    except Exception as e:
+        logger.error(f"Migration failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}") from e
+
+
 @router.get("/sync-status")
 def sync_status():
     """Get information about the scheduled sync."""
@@ -645,6 +686,48 @@ def get_measurements(
     measurements = query.order_by(desc(Measurement.timestamp)).limit(limit).all()
 
     return measurements
+
+
+@router.delete("/measurements")
+def delete_measurements(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+    device: Optional[str] = Query(None, description="Filter by device"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    measurement_type: Optional[str] = Query(None, description="Filter by measurement type"),
+):
+    """
+    Delete measurement records with optional filtering.
+
+    Args:
+        device: Filter by device name (optional) - if not provided, deletes all
+        location: Filter by location (optional)
+        measurement_type: Filter by measurement type (optional)
+        api_key: API key verification (required)
+
+    Returns:
+        Number of deleted records
+
+    Example:
+        DELETE /api/measurements?device=neo600&measurement_type=cryogen_level
+    """
+    query = db.query(Measurement)
+
+    if device:
+        query = query.filter(Measurement.device == device)
+    if location:
+        query = query.filter(Measurement.location == location)
+    if measurement_type:
+        query = query.filter(Measurement.measurement_type == measurement_type)
+
+    deleted_count = query.delete()
+    db.commit()
+
+    logger.info(
+        f"Deleted {deleted_count} measurement records (filters: device={device}, location={location}, type={measurement_type})"
+    )
+
+    return {"deleted": deleted_count}
 
 
 @router.websocket("/ws/readings/{instrument_id}")

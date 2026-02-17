@@ -504,6 +504,12 @@ function setupAdminControls() {
         syncBtn.addEventListener('click', triggerManualSync);
     }
 
+    // Log migration button
+    const migrateBtn = document.getElementById('migrate-logs-btn');
+    if (migrateBtn) {
+        migrateBtn.addEventListener('click', triggerLogMigration);
+    }
+
     // Evaporation rate controls
     const evapRefreshBtn = document.getElementById('evap-refresh-btn');
     if (evapRefreshBtn) {
@@ -588,6 +594,76 @@ async function triggerManualSync() {
         setTimeout(() => {
             loadDatabaseStats();
             loadSyncHistory();
+        }, 1000);
+    }
+}
+
+async function triggerLogMigration() {
+    const btn = document.getElementById('migrate-logs-btn');
+    const resultDiv = document.getElementById('migration-result');
+
+    // Prompt for API key if not already stored
+    let apiKey = localStorage.getItem('apiKey');
+    if (!apiKey) {
+        apiKey = prompt('Entrez votre clé API (API_KEY du .env):');
+        if (!apiKey) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = '❌ Migration annulée: clé API requise';
+            return;
+        }
+        // Optionally save it for future use
+        const saveit = confirm('Sauvegarder la clé API pour les prochaines requêtes?');
+        if (saveit) {
+            localStorage.setItem('apiKey', apiKey);
+        }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Migration en cours...';
+
+    try {
+        const response = await fetch(`${API_URL}/admin/migrate-logs-to-measurements`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey
+            }
+        });
+        const data = await response.json();
+
+        resultDiv.style.display = 'block';
+        if (response.ok) {
+            resultDiv.className = 'migration-result success';
+            const stats = data.statistics;
+            resultDiv.innerHTML = `
+                <strong>✓ Migration réussie</strong><br/>
+                <ul>
+                    <li>Enregistrements importés: ${stats.imported}</li>
+                    <li>Enregistrements ignorés (doublons): ${stats.skipped}</li>
+                    <li>Total lu: ${stats.total_records}</li>
+                    <li>Erreurs: ${stats.errors}</li>
+                    <li>Fichiers traités: ${stats.files_processed}</li>
+                </ul>
+            `;
+        } else if (response.status === 401) {
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = '❌ Erreur d\'authentification: clé API invalide';
+            localStorage.removeItem('apiKey'); // Remove invalid key
+        } else {
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = `❌ Erreur: ${data.detail}`;
+        }
+    } catch (error) {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'migration-result error';
+        resultDiv.textContent = `❌ Erreur: ${error.message}`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Programmer la migration';
+        // Reload measurements data
+        setTimeout(() => {
+            loadMeasurements();
         }, 1000);
     }
 }

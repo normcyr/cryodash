@@ -561,6 +561,26 @@ button:active {
     color: var(--critical-color);
 }
 
+.migration-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(124, 58, 237, 0.1);
+    border-left: 4px solid var(--secondary-color);
+    border-radius: 6px;
+}
+
+.migration-result.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.migration-result.error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: var(--critical-color);
+    color: var(--critical-color);
+}
+
 .evap-controls {
     margin-bottom: 1.5rem;
     display: flex;
