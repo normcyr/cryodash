@@ -3,6 +3,11 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Project paths - use /app/data in Docker, local cryodash_data otherwise
 if os.getenv("DOCKER_ENV", "false").lower() == "true" or os.path.exists("/.dockerenv"):
     DATA_DIR = Path("/app/data")
