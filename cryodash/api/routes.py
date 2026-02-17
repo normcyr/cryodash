@@ -606,6 +606,47 @@ def submit_measurement_data(
         ) from e
 
 
+@router.get("/measurements", response_model=list[MeasurementResponseSchema])
+def get_measurements(
+    db: Session = Depends(get_db),
+    device: Optional[str] = Query(None, description="Filter by device"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    measurement_type: Optional[str] = Query(None, description="Filter by measurement type"),
+    hours: int = Query(24, ge=1, le=8760, description="Hours of history to retrieve"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+):
+    """
+    Get measurement records with optional filtering.
+
+    Args:
+        device: Filter by device name (optional)
+        location: Filter by location (optional)
+        measurement_type: Filter by measurement type (optional)
+        hours: Number of hours of history to retrieve (default 24)
+        limit: Maximum number of records to return (default 100)
+
+    Returns:
+        List of measurement records ordered by timestamp (newest first)
+
+    Example:
+        GET /api/measurements?device=neo600&measurement_type=cryogen_level&hours=48&limit=50
+    """
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    query = db.query(Measurement).filter(Measurement.timestamp >= cutoff_time)
+
+    if device:
+        query = query.filter(Measurement.device == device)
+    if location:
+        query = query.filter(Measurement.location == location)
+    if measurement_type:
+        query = query.filter(Measurement.measurement_type == measurement_type)
+
+    measurements = query.order_by(desc(Measurement.timestamp)).limit(limit).all()
+
+    return measurements
+
+
 @router.websocket("/ws/readings/{instrument_id}")
 async def websocket_readings(websocket: WebSocket, instrument_id: str):
     """
