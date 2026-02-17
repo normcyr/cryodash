@@ -1,10 +1,10 @@
 """Database models and Pydantic schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Column, DateTime, Float, Index, Integer, String
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from cryodash.database import Base
@@ -57,6 +57,33 @@ class SyncHistory(Base):
     files_failed = Column(Integer, default=0)
     error_message = Column(String(500), nullable=True)
     details = Column(String(2000), nullable=True)  # JSON string with per-file results
+
+
+class Measurement(Base):
+    """Table for flexible measurement submissions (push API model)."""
+
+    __tablename__ = "measurements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device = Column(String(50), nullable=True, index=True)  # e.g., "neo600" (optional)
+    location = Column(String(100), nullable=True, index=True)  # e.g., "magnet_room" (optional)
+    measurement_type = Column(
+        String(50), nullable=False, index=True
+    )  # e.g., "cryogen_level", "temperature"
+    value = Column(Float, nullable=False)  # The measured value
+    unit = Column(String(20), nullable=True)  # e.g., "%", "°C"
+    timestamp = Column(DateTime, nullable=False, index=True)  # When measurement was taken
+    data = Column(
+        Text, nullable=True
+    )  # Flexible JSON for extra data (renamed from metadata to avoid SQLAlchemy reserved word)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_measurement_device_timestamp", "device", "timestamp"),
+        Index("idx_measurement_location_timestamp", "location", "timestamp"),
+        Index("idx_measurement_type_timestamp", "measurement_type", "timestamp"),
+        Index("idx_measurement_device_location_timestamp", "device", "location", "timestamp"),
+    )
 
 
 # Pydantic Schemas
@@ -158,3 +185,45 @@ class EvaporationRateSchema(BaseModel):
     oldest_timestamp: datetime
     refill_detected: bool = False
     last_refill_timestamp: Optional[datetime] = None
+
+
+# New flexible measurement schemas for POST /api/data
+class ReadingSchema(BaseModel):
+    """Schema for a single measurement reading."""
+
+    type: str  # e.g., "cryogen_level", "temperature", "humidity", "status"
+    cryogen: Optional[str] = None  # For cryogen_level readings only
+    location: Optional[str] = None  # For location-based readings
+    value: Optional[float] = None  # For numeric readings
+    status: Optional[str] = None  # For status readings
+    unit: Optional[str] = None  # e.g., "%", "°C", "psi"
+    metadata: Optional[dict[str, Any]] = None  # Flexible key-value pairs
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeasurementSchema(BaseModel):
+    """Schema for measurement data submission (POST /api/data)."""
+
+    device: Optional[str] = None  # e.g., "neo600" - optional
+    location: Optional[str] = None  # e.g., "magnet_room" - optional
+    timestamp: datetime  # ISO 8601 - required from client
+    readings: list[ReadingSchema] = Field(..., min_length=1)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeasurementResponseSchema(BaseModel):
+    """Schema for measurement response."""
+
+    id: int
+    device: Optional[str]
+    location: Optional[str]
+    measurement_type: str
+    value: Optional[float]
+    unit: Optional[str]
+    timestamp: datetime
+    data: Optional[dict[str, Any]]  # Renamed from metadata
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

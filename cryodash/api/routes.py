@@ -20,6 +20,9 @@ from cryodash.models import (
     InstrumentCreateSchema,
     InstrumentDetailSchema,
     InstrumentSchema,
+    Measurement,
+    MeasurementResponseSchema,
+    MeasurementSchema,
     SyncHistory,
     SyncHistorySchema,
 )
@@ -510,6 +513,93 @@ def get_evaporation_rates(
             evaporation_rates.append(EvaporationRateSchema(**rate_data))
 
     return evaporation_rates
+
+
+@router.post("/data", response_model=list[MeasurementResponseSchema])
+def submit_measurement_data(
+    data: MeasurementSchema,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """
+    Submit flexible measurement data from instruments (push API).
+
+    Accepts various types of measurements (cryogen levels, temperature, humidity, etc.)
+    associated with instruments, locations, or neither (fully independent readings).
+
+    Example:
+    ```json
+    {
+      "device": "neo600",
+      "timestamp": "2026-02-17T10:30:00Z",
+      "readings": [
+        {
+          "type": "cryogen_level",
+          "cryogen": "N2",
+          "value": 85.5,
+          "unit": "%"
+        },
+        {
+          "type": "temperature",
+          "location": "magnet_room",
+          "value": 22.3,
+          "unit": "°C"
+        }
+      ]
+    }
+    ```
+
+    Args:
+        data: MeasurementSchema with device, location (optional), and readings
+        db: Database session
+        _: API key verification
+
+    Returns:
+        List of created measurements
+    """
+    created_measurements = []
+
+    try:
+        for reading in data.readings:
+            # Determine metadata based on reading type
+            metadata = reading.metadata or {}
+
+            # Add type-specific metadata
+            if reading.type == "cryogen_level" and reading.cryogen:
+                metadata["cryogen"] = reading.cryogen
+
+            # Create measurement record
+            measurement = Measurement(
+                device=data.device,
+                location=reading.location or data.location,
+                measurement_type=reading.type,
+                value=reading.value,
+                unit=reading.unit,
+                timestamp=data.timestamp,
+                data=metadata if metadata else None,
+            )
+
+            db.add(measurement)
+            created_measurements.append(measurement)
+
+        db.commit()
+
+        # Refresh all measurements to get IDs and created_at
+        for m in created_measurements:
+            db.refresh(m)
+
+        logger.info(
+            f"Submitted {len(created_measurements)} measurements for device={data.device}, location={data.location}"
+        )
+
+        return created_measurements
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error submitting measurement data: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to submit measurements: {str(e)}"
+        ) from e
 
 
 @router.websocket("/ws/readings/{instrument_id}")
