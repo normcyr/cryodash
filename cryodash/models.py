@@ -1,9 +1,10 @@
 """Database models and Pydantic schemas."""
 
+import json
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
@@ -227,3 +228,16 @@ class MeasurementResponseSchema(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def parse_data_json(cls, v: Any) -> Optional[dict[str, Any]]:
+        """Parse JSON string to dict if needed."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v

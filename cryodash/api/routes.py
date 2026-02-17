@@ -1,5 +1,6 @@
 """API routes for CryoDash."""
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
@@ -568,6 +569,9 @@ def submit_measurement_data(
             if reading.type == "cryogen_level" and reading.cryogen:
                 metadata["cryogen"] = reading.cryogen
 
+            # Convert metadata dict to JSON string for SQLite storage
+            metadata_json = json.dumps(metadata) if metadata else None
+
             # Create measurement record
             measurement = Measurement(
                 device=data.device,
@@ -576,7 +580,7 @@ def submit_measurement_data(
                 value=reading.value,
                 unit=reading.unit,
                 timestamp=data.timestamp,
-                data=metadata if metadata else None,
+                data=metadata_json,
             )
 
             db.add(measurement)
