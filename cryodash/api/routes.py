@@ -569,6 +569,8 @@ def submit_measurement_data(
     Accepts various types of measurements (cryogen levels, temperature, humidity, etc.)
     associated with instruments, locations, or neither (fully independent readings).
 
+    Prevents duplicate submissions using (device, location, measurement_type, timestamp, value) uniqueness.
+
     Example:
     ```json
     {
@@ -597,9 +599,10 @@ def submit_measurement_data(
         _: API key verification
 
     Returns:
-        List of created measurements
+        List of created measurements (skips duplicates)
     """
     created_measurements = []
+    skipped_duplicates = 0
 
     try:
         for reading in data.readings:
@@ -613,10 +616,33 @@ def submit_measurement_data(
             # Convert metadata dict to JSON string for SQLite storage
             metadata_json = json.dumps(metadata) if metadata else None
 
+            # Check for duplicate measurement
+            location = reading.location or data.location
+            existing = (
+                db.query(Measurement)
+                .filter(
+                    and_(
+                        Measurement.device == data.device,
+                        Measurement.location == location,
+                        Measurement.measurement_type == reading.type,
+                        Measurement.timestamp == data.timestamp,
+                        Measurement.value == reading.value,
+                    )
+                )
+                .first()
+            )
+
+            if existing:
+                logger.debug(
+                    f"Skipping duplicate: device={data.device}, type={reading.type}, timestamp={data.timestamp}, value={reading.value}"
+                )
+                skipped_duplicates += 1
+                continue
+
             # Create measurement record
             measurement = Measurement(
                 device=data.device,
-                location=reading.location or data.location,
+                location=location,
                 measurement_type=reading.type,
                 value=reading.value,
                 unit=reading.unit,
@@ -634,7 +660,7 @@ def submit_measurement_data(
             db.refresh(m)
 
         logger.info(
-            f"Submitted {len(created_measurements)} measurements for device={data.device}, location={data.location}"
+            f"Submitted {len(created_measurements)} measurements for device={data.device}, location={data.location} ({skipped_duplicates} duplicates skipped)"
         )
 
         return created_measurements
