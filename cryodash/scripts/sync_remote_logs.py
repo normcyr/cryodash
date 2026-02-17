@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -77,10 +78,13 @@ def sync_logs(db: Optional[Session] = None) -> dict:
         should_close_db = True
         logger.debug("Database session created")
 
-    # Create temp directory for log files
-    temp_dir = Path(__file__).parent.parent.parent / "temp_logs"
+    # Create temp directory for log files - use persistent volume on Railway
+    if os.getenv("DOCKER_ENV", "false").lower() == "true" or os.path.exists("/.dockerenv"):
+        temp_dir = Path("/app/data/temp_logs")
+    else:
+        temp_dir = Path(__file__).parent.parent.parent / "temp_logs"
     logger.debug(f"Using temp directory: {temp_dir}")
-    temp_dir.mkdir(exist_ok=True)
+    temp_dir.mkdir(exist_ok=True, parents=True)
     logger.debug("Temp directory ready")
 
     results = {

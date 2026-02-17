@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -35,7 +36,11 @@ def migrate_logs_to_measurements(db: Session, log_dir: Optional[Path] = None) ->
         Migration statistics dictionary
     """
     if log_dir is None:
-        log_dir = Path(__file__).parent.parent.parent / "temp_logs"
+        # Use persistent volume on Railway, temp_logs locally
+        if os.getenv("DOCKER_ENV", "false").lower() == "true" or os.path.exists("/.dockerenv"):
+            log_dir = Path("/app/data/temp_logs")
+        else:
+            log_dir = Path(__file__).parent.parent.parent / "temp_logs"
 
     stats = {
         "total_records": 0,
