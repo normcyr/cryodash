@@ -15,7 +15,6 @@ import json
 import re
 import sys
 from datetime import datetime, timedelta
-from typing import Any
 
 # Configuration
 API_ENDPOINT = "API_ENDPOINT"  # e.g., "http://localhost:8000/api/data"
@@ -25,9 +24,6 @@ LOCATION = "magnet_room"
 LOG_FILE = "/path/to/neo600_N2logcache.log"  # Update this path
 
 # Import appropriate HTTP library (works with both Python 2 and 3)
-urllib_request: Any
-urllib_error: Any
-
 try:
     import urllib.error as urllib_error  # type: ignore
     import urllib.request as urllib_request  # type: ignore
