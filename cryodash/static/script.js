@@ -64,6 +64,11 @@ function switchPage(pageName) {
             loadCharts();
         }
     }
+
+    // If switching to measurements, load measurements
+    if (pageName === 'measurements') {
+        loadMeasurements();
+    }
 }
 
 /**
@@ -853,4 +858,132 @@ function updateInstrumentCard(instrumentName, reading) {
     if (statusMsg) {
         statusMsg.innerHTML = getStatusMessage(statusClass);
     }
+}
+
+/* ============================================
+   MEASUREMENTS PAGE FUNCTIONS
+   ============================================ */
+
+// Type badge colors
+const typeBadgeColors = {
+    cryogen_level: "type-cryogen",
+    temperature: "type-temperature",
+    humidity: "type-humidity",
+    pressure: "type-pressure",
+    status: "type-status",
+};
+
+// Format timestamp
+function formatTimestamp(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    });
+}
+
+// Load measurements
+async function loadMeasurements() {
+    const device = document.getElementById("filter-device").value;
+    const location = document.getElementById("filter-location").value;
+    const type = document.getElementById("filter-type").value;
+    const hours = document.getElementById("filter-hours").value;
+
+    // Show loading state
+    document.getElementById("loading-state").style.display = "block";
+    document.getElementById("measurements-table").style.display = "none";
+    document.getElementById("empty-state").style.display = "none";
+    document.getElementById("error-message").classList.remove("show");
+
+    try {
+        // Build query string
+        const params = new URLSearchParams();
+        if (device) params.append("device", device);
+        if (location) params.append("location", location);
+        if (type) params.append("measurement_type", type);
+        params.append("hours", hours);
+        params.append("limit", 500);
+
+        const response = await fetch(`/api/measurements?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const measurements = await response.json();
+
+        // Update stats
+        updateStats(measurements);
+
+        // Populate table
+        if (measurements.length === 0) {
+            document.getElementById("empty-state").style.display = "block";
+        } else {
+            populateTable(measurements);
+            document.getElementById("measurements-table").style.display = "table";
+        }
+    } catch (error) {
+        console.error("Error loading measurements:", error);
+        const errorDiv = document.getElementById("error-message");
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.classList.add("show");
+    } finally {
+        document.getElementById("loading-state").style.display = "none";
+    }
+}
+
+// Update statistics
+function updateStats(measurements) {
+    // Total measurements
+    document.getElementById("stat-total").textContent = measurements.length;
+
+    // Unique types
+    const types = new Set(measurements.map((m) => m.measurement_type));
+    document.getElementById("stat-types").textContent = types.size;
+
+    // Unique devices
+    const devices = new Set(measurements.filter((m) => m.device).map((m) => m.device));
+    document.getElementById("stat-devices").textContent = devices.size;
+}
+
+// Populate table with measurements
+function populateTable(measurements) {
+    const tbody = document.getElementById("table-body");
+    tbody.innerHTML = "";
+
+    measurements.forEach((m) => {
+        const row = document.createElement("tr");
+        const badgeClass = typeBadgeColors[m.measurement_type] || "type-status";
+        const metadata = m.data ? JSON.stringify(m.data).substring(0, 50) : "—";
+
+        row.innerHTML = `
+            <td>${m.id}</td>
+            <td>${m.device || "—"}</td>
+            <td>${m.location || "—"}</td>
+            <td><span class="type-badge ${badgeClass}">${m.measurement_type}</span></td>
+            <td>${m.value !== null ? `${m.value} ${m.unit || ""}` : "—"}</td>
+            <td class="timestamp">${formatTimestamp(m.timestamp)}</td>
+            <td class="metadata" title="${metadata}">${metadata}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Apply filters
+function applyFilters() {
+    loadMeasurements();
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById("filter-device").value = "";
+    document.getElementById("filter-location").value = "";
+    document.getElementById("filter-type").value = "";
+    document.getElementById("filter-hours").value = "24";
+    loadMeasurements();
 }

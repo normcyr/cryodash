@@ -47,7 +47,7 @@ curl -H "X-API-Key: your-api-key" \
 ### Champs
 
 | Champ | Type | Requis | Description |
-|-------|------|--------|-------------|
+| --- | --- | --- | --- |
 | `device` | string | ❌ | Nom de l'instrument (ex: "neo600", "neo700") |
 | `location` | string | ❌ | Localisation (ex: "magnet_room", "control_room") |
 | `timestamp` | ISO 8601 | ✅ | Horodatage de la mesure en UTC |
@@ -56,7 +56,7 @@ curl -H "X-API-Key: your-api-key" \
 ### Objet Reading
 
 | Champ | Type | Requis | Description |
-|-------|------|--------|-------------|
+| --- | --- | --- | --- |
 | `type` | string | ✅ | Type de mesure (ex: "cryogen_level", "temperature", "humidity") |
 | `cryogen` | string | ❌ | Type de cryogène (ex: "N2", "He") - pour cryogen_level |
 | `location` | string | ❌ | Localisation spécifique (ex: "sample_room") |
@@ -207,7 +207,7 @@ Erreur (400 Bad Request):
 ## Code Types Supportés
 
 | Type | Description | Champs typiques |
-|------|-------------|-----------------|
+| --- | --- | --- |
 | `cryogen_level` | Niveau de cryogène | cryogen, value, unit |
 | `temperature` | Température | value, unit, location |
 | `humidity` | Humidité relative | value, unit |

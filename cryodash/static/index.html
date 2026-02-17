@@ -26,9 +26,9 @@
                 <button class="nav-tab" data-page="charts">
                     📈 Graphiques
                 </button>
-                <a href="/measurements.html" class="nav-tab" style="text-decoration: none; background: #3498db; color: white;">
+                <button class="nav-tab" data-page="measurements">
                     📋 Measurements
-                </a>
+                </button>
                 <button class="nav-tab" data-page="admin">
                     ⚙️ Administration
                 </button>
@@ -138,6 +138,86 @@
                                 <p>Chargement...</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Measurements Page -->
+            <div id="measurements-page" class="page-content">
+                <h2>Measurements</h2>
+
+                <div class="measurements-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">Total Measurements</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-types">0</div>
+                        <div class="stat-label">Measurement Types</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-devices">0</div>
+                        <div class="stat-label">Devices</div>
+                    </div>
+                </div>
+
+                <div class="error" id="error-message"></div>
+
+                <div class="measurements-filters">
+                    <div class="filter-group">
+                        <label for="filter-device">Device</label>
+                        <input type="text" id="filter-device" placeholder="e.g., neo600" autocomplete="off" />
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-location">Location</label>
+                        <input type="text" id="filter-location" placeholder="e.g., magnet_room" autocomplete="off" />
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-type">Measurement Type</label>
+                        <input type="text" id="filter-type" placeholder="e.g., temperature" autocomplete="off" />
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-hours">Hours</label>
+                        <select id="filter-hours">
+                            <option value="1">Last 1 hour</option>
+                            <option value="6">Last 6 hours</option>
+                            <option value="24" selected>Last 24 hours</option>
+                            <option value="48">Last 48 hours</option>
+                            <option value="168">Last 7 days</option>
+                            <option value="720">Last 30 days</option>
+                        </select>
+                    </div>
+                    <div class="filter-buttons">
+                        <button onclick="applyFilters()" class="filter-btn">🔍 Filter</button>
+                        <button onclick="clearFilters()" class="filter-btn clear">Clear</button>
+                    </div>
+                </div>
+
+                <div class="measurements-table-wrapper">
+                    <div class="loading" id="loading-state" style="display: none">
+                        <div class="spinner"></div>
+                        <p>Loading measurements...</p>
+                    </div>
+                    <table id="measurements-table" style="display: none">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Device</th>
+                                <th>Location</th>
+                                <th>Type</th>
+                                <th>Value</th>
+                                <th>Timestamp</th>
+                                <th>Metadata</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                    <div class="empty-state" id="empty-state" style="display: none">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h3>No measurements found</h3>
+                        <p>Try adjusting your filters or check back later</p>
                     </div>
                 </div>
             </div>

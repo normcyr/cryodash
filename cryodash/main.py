@@ -287,6 +287,15 @@ def create_app() -> FastAPI:
             return FileResponse(index_path)
         return {"message": "Welcome to CryoDash API"}
 
+    # Measurements page endpoint
+    @app.get("/measurements")
+    async def measurements_page():
+        """Serve the measurements page."""
+        measurements_path = STATIC_DIR / "measurements.html"
+        if measurements_path.exists():
+            return FileResponse(measurements_path)
+        return {"message": "Measurements page not found"}
+
     return app
 
 
