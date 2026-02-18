@@ -1,7 +1,7 @@
 """WebSocket connection management for real-time data streaming."""
 
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 from fastapi import WebSocket
 
@@ -89,6 +89,9 @@ class ConnectionManager:
             websocket: The WebSocket connection
             instrument_id: The instrument ID
         """
+        # Import here to avoid circular import
+        from cryodash.api.routes import _get_alert_status
+
         db = SessionLocal()
         try:
             latest = (
@@ -99,6 +102,11 @@ class ConnectionManager:
             )
 
             if latest:
+                status = _get_alert_status(
+                    cast(str, latest.device),
+                    cast(str, latest.cryogen),
+                    cast(float, latest.level),
+                )
                 message = {
                     "type": "reading",
                     "data": {
@@ -107,6 +115,7 @@ class ConnectionManager:
                         "cryogen": latest.cryogen,
                         "level": latest.level,
                         "timestamp": latest.timestamp.isoformat(),
+                        "status": status,
                     },
                 }
                 await websocket.send_json(message)
