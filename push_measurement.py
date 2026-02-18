@@ -14,7 +14,6 @@ To use with cron, add to crontab:
 import json
 import re
 import sys
-from datetime import datetime, timedelta
 
 # Configuration
 API_ENDPOINT = "API_ENDPOINT"  # e.g., "http://localhost:8000/api/data"
@@ -35,59 +34,6 @@ except ImportError:
 
 # Detect Python version
 PYTHON_VERSION = sys.version_info[0]
-
-
-def parse_iso_timestamp_with_tz(timestamp_str):
-    """
-    Parse ISO timestamp with timezone offset.
-
-    Example: "2026-02-17T08:09:00.000-0500"
-    Returns: datetime in UTC
-    """
-    # Parse timezone offset from end of string (e.g., "-0500" or "+0530")
-    tz_pattern = r"([+-])(\d{2})(\d{2})$"
-    tz_match = re.search(tz_pattern, timestamp_str)
-
-    if not tz_match:
-        # No timezone info, try to parse as is
-        try:
-            return datetime.strptime(timestamp_str[:19], "%Y-%m-%dT%H:%M:%S")
-        except ValueError:
-            return None
-
-    # Extract timezone offset
-    tz_sign = tz_match.group(1)
-    tz_hours = int(tz_match.group(2))
-    tz_minutes = int(tz_match.group(3))
-
-    # Remove timezone from string and parse datetime
-    timestamp_no_tz = timestamp_str[: tz_match.start()]
-
-    try:
-        # Handle milliseconds if present
-        if "." in timestamp_no_tz:
-            dt = datetime.strptime(timestamp_no_tz, "%Y-%m-%dT%H:%M:%S.%f")
-        else:
-            dt = datetime.strptime(timestamp_no_tz, "%Y-%m-%dT%H:%M:%S")
-    except ValueError:
-        return None
-
-    # Calculate UTC offset
-    if tz_sign == "-":
-        offset = timedelta(hours=tz_hours, minutes=tz_minutes)
-    else:
-        offset = -timedelta(hours=tz_hours, minutes=tz_minutes)
-
-    # Convert to UTC
-    dt_utc = dt + offset
-
-    return dt_utc
-
-
-def timestamp_to_iso_utc(dt):
-    """Convert datetime to ISO format with Z suffix."""
-    iso_str = dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
-    return iso_str + "Z"
 
 
 def read_latest_measurement(log_path):
@@ -131,15 +77,15 @@ def read_latest_measurement(log_path):
             print(f"Warning: Invalid level value: {level_str}")
             continue
 
-        # Parse timestamp with timezone conversion
-        dt_utc = parse_iso_timestamp_with_tz(timestamp_str)
-
-        if dt_utc is None:
-            print(f"Warning: Cannot parse timestamp: {timestamp_str}")
+        # Validate timestamp format (keep as-is with local timezone offset)
+        # Format: "2026-02-17T08:09:00.000-0500" (with local TZ, not UTC)
+        tz_pattern = r"([+-])(\d{2})(\d{2})$"
+        if not re.search(tz_pattern, timestamp_str):
+            print(f"Warning: Timestamp missing timezone offset: {timestamp_str}")
             continue
 
-        timestamp_iso = timestamp_to_iso_utc(dt_utc)
-        return timestamp_iso, level
+        # Return timestamp as-is (with local timezone, not UTC)
+        return timestamp_str, level
 
     print(f"Error: No valid data lines found in {log_path}")
     return None
