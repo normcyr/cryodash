@@ -1,5 +1,6 @@
 """API routes for CryoDash."""
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
@@ -20,9 +21,13 @@ from cryodash.models import (
     InstrumentCreateSchema,
     InstrumentDetailSchema,
     InstrumentSchema,
+    Measurement,
+    MeasurementResponseSchema,
+    MeasurementSchema,
     SyncHistory,
     SyncHistorySchema,
 )
+from cryodash.scripts.migrate_logs_to_measurements import migrate_logs_to_measurements
 from cryodash.scripts.sync_remote_logs import sync_logs
 from cryodash.security import verify_api_key
 from cryodash.websocket import manager
@@ -347,6 +352,46 @@ def sync_logs_endpoint():
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}") from e
 
 
+@router.post("/admin/migrate-logs-to-measurements")
+def migrate_logs_endpoint(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+):
+    """
+    Migrate historical cryogenic log data to Measurement table.
+
+    Converts legacy CryogenReading format to new flexible Measurement schema.
+    This allows historical data to be viewed in the Measurements tab.
+
+    Args:
+        api_key: API key verification (required for admin operation)
+
+    Returns:
+        Migration statistics with import counts and error information
+
+    Example:
+        POST /api/admin/migrate-logs-to-measurements
+        Headers: X-API-Key: your-api-key
+    """
+    try:
+        logger.info("Starting migration of logs to Measurement table...")
+        stats = migrate_logs_to_measurements(db)
+
+        logger.info(
+            f"Migration complete: {stats['imported']} records imported, "
+            f"{stats['skipped']} skipped, {stats['errors']} errors"
+        )
+
+        return {
+            "status": "success",
+            "message": "Migration completed successfully",
+            "statistics": stats,
+        }
+    except Exception as e:
+        logger.error(f"Migration failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}") from e
+
+
 @router.get("/sync-status")
 def sync_status():
     """Get information about the scheduled sync."""
@@ -510,6 +555,205 @@ def get_evaporation_rates(
             evaporation_rates.append(EvaporationRateSchema(**rate_data))
 
     return evaporation_rates
+
+
+@router.post("/data", response_model=list[MeasurementResponseSchema])
+def submit_measurement_data(
+    data: MeasurementSchema,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """
+    Submit flexible measurement data from instruments (push API).
+
+    Accepts various types of measurements (cryogen levels, temperature, humidity, etc.)
+    associated with instruments, locations, or neither (fully independent readings).
+
+    Prevents duplicate submissions using (device, location, measurement_type, timestamp, value) uniqueness.
+
+    Example:
+    ```json
+    {
+      "device": "neo600",
+      "timestamp": "2026-02-17T10:30:00Z",
+      "readings": [
+        {
+          "type": "cryogen_level",
+          "cryogen": "N2",
+          "value": 85.5,
+          "unit": "%"
+        },
+        {
+          "type": "temperature",
+          "location": "magnet_room",
+          "value": 22.3,
+          "unit": "°C"
+        }
+      ]
+    }
+    ```
+
+    Args:
+        data: MeasurementSchema with device, location (optional), and readings
+        db: Database session
+        _: API key verification
+
+    Returns:
+        List of created measurements (skips duplicates)
+    """
+    created_measurements = []
+    skipped_duplicates = 0
+
+    try:
+        for reading in data.readings:
+            # Determine metadata based on reading type
+            metadata = reading.metadata or {}
+
+            # Add type-specific metadata
+            if reading.type == "cryogen_level" and reading.cryogen:
+                metadata["cryogen"] = reading.cryogen
+
+            # Convert metadata dict to JSON string for SQLite storage
+            metadata_json = json.dumps(metadata) if metadata else None
+
+            # Check for duplicate measurement
+            location = reading.location or data.location
+            existing = (
+                db.query(Measurement)
+                .filter(
+                    and_(
+                        Measurement.device == data.device,
+                        Measurement.location == location,
+                        Measurement.measurement_type == reading.type,
+                        Measurement.timestamp == data.timestamp,
+                        Measurement.value == reading.value,
+                    )
+                )
+                .first()
+            )
+
+            if existing:
+                logger.debug(
+                    f"Skipping duplicate: device={data.device}, type={reading.type}, timestamp={data.timestamp}, value={reading.value}"
+                )
+                skipped_duplicates += 1
+                continue
+
+            # Create measurement record
+            measurement = Measurement(
+                device=data.device,
+                location=location,
+                measurement_type=reading.type,
+                value=reading.value,
+                unit=reading.unit,
+                timestamp=data.timestamp,
+                data=metadata_json,
+            )
+
+            db.add(measurement)
+            created_measurements.append(measurement)
+
+        db.commit()
+
+        # Refresh all measurements to get IDs and created_at
+        for m in created_measurements:
+            db.refresh(m)
+
+        logger.info(
+            f"Submitted {len(created_measurements)} measurements for device={data.device}, location={data.location} ({skipped_duplicates} duplicates skipped)"
+        )
+
+        return created_measurements
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error submitting measurement data: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to submit measurements: {str(e)}"
+        ) from e
+
+
+@router.get("/measurements", response_model=list[MeasurementResponseSchema])
+def get_measurements(
+    db: Session = Depends(get_db),
+    device: Optional[str] = Query(None, description="Filter by device"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    measurement_type: Optional[str] = Query(None, description="Filter by measurement type"),
+    hours: int = Query(24, ge=1, le=8760, description="Hours of history to retrieve"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+):
+    """
+    Get measurement records with optional filtering.
+
+    Args:
+        device: Filter by device name (optional)
+        location: Filter by location (optional)
+        measurement_type: Filter by measurement type (optional)
+        hours: Number of hours of history to retrieve (default 24)
+        limit: Maximum number of records to return (default 100)
+
+    Returns:
+        List of measurement records ordered by timestamp (newest first)
+
+    Example:
+        GET /api/measurements?device=neo600&measurement_type=cryogen_level&hours=48&limit=50
+    """
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    query = db.query(Measurement).filter(Measurement.timestamp >= cutoff_time)
+
+    if device:
+        query = query.filter(Measurement.device == device)
+    if location:
+        query = query.filter(Measurement.location == location)
+    if measurement_type:
+        query = query.filter(Measurement.measurement_type == measurement_type)
+
+    measurements = query.order_by(desc(Measurement.timestamp)).limit(limit).all()
+
+    return measurements
+
+
+@router.delete("/measurements")
+def delete_measurements(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+    device: Optional[str] = Query(None, description="Filter by device"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    measurement_type: Optional[str] = Query(None, description="Filter by measurement type"),
+):
+    """
+    Delete measurement records with optional filtering.
+
+    Args:
+        device: Filter by device name (optional) - if not provided, deletes all
+        location: Filter by location (optional)
+        measurement_type: Filter by measurement type (optional)
+        api_key: API key verification (required)
+
+    Returns:
+        Number of deleted records
+
+    Example:
+        DELETE /api/measurements?device=neo600&measurement_type=cryogen_level
+    """
+    query = db.query(Measurement)
+
+    if device:
+        query = query.filter(Measurement.device == device)
+    if location:
+        query = query.filter(Measurement.location == location)
+    if measurement_type:
+        query = query.filter(Measurement.measurement_type == measurement_type)
+
+    deleted_count = query.delete()
+    db.commit()
+
+    logger.info(
+        f"Deleted {deleted_count} measurement records (filters: device={device}, location={location}, type={measurement_type})"
+    )
+
+    return {"deleted": deleted_count}
 
 
 @router.websocket("/ws/readings/{instrument_id}")

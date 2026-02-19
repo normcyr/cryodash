@@ -3,7 +3,8 @@ FROM python:3.12-alpine
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1
+    UV_COMPILE_BYTECODE=1 \
+    TZ=America/Toronto
 
 WORKDIR /app
 
@@ -12,6 +13,7 @@ RUN apk add --no-cache \
     gcc \
     musl-dev \
     curl \
+    tzdata \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,9 +35,8 @@ COPY entrypoint.py /app/entrypoint.py
 COPY healthcheck.sh /app/healthcheck.sh
 RUN chmod +x /app/entrypoint.py /app/healthcheck.sh
 
-# Health check disabled for now - Railway has issues with PORT env var in healthcheck
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-#     CMD ["/app/healthcheck.sh"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD ["/app/healthcheck.sh"]
 
 # Expose port
 EXPOSE 8000

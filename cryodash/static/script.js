@@ -64,6 +64,11 @@ function switchPage(pageName) {
             loadCharts();
         }
     }
+
+    // If switching to measurements, load measurements
+    if (pageName === 'measurements') {
+        loadMeasurements();
+    }
 }
 
 /**
@@ -499,6 +504,12 @@ function setupAdminControls() {
         syncBtn.addEventListener('click', triggerManualSync);
     }
 
+    // Log migration button
+    const migrateBtn = document.getElementById('migrate-logs-btn');
+    if (migrateBtn) {
+        migrateBtn.addEventListener('click', triggerLogMigration);
+    }
+
     // Evaporation rate controls
     const evapRefreshBtn = document.getElementById('evap-refresh-btn');
     if (evapRefreshBtn) {
@@ -583,6 +594,76 @@ async function triggerManualSync() {
         setTimeout(() => {
             loadDatabaseStats();
             loadSyncHistory();
+        }, 1000);
+    }
+}
+
+async function triggerLogMigration() {
+    const btn = document.getElementById('migrate-logs-btn');
+    const resultDiv = document.getElementById('migration-result');
+
+    // Prompt for API key if not already stored
+    let apiKey = localStorage.getItem('apiKey');
+    if (!apiKey) {
+        apiKey = prompt('Entrez votre clé API (API_KEY du .env):');
+        if (!apiKey) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = '❌ Migration annulée: clé API requise';
+            return;
+        }
+        // Optionally save it for future use
+        const saveit = confirm('Sauvegarder la clé API pour les prochaines requêtes?');
+        if (saveit) {
+            localStorage.setItem('apiKey', apiKey);
+        }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Migration en cours...';
+
+    try {
+        const response = await fetch(`${API_URL}/admin/migrate-logs-to-measurements`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey
+            }
+        });
+        const data = await response.json();
+
+        resultDiv.style.display = 'block';
+        if (response.ok) {
+            resultDiv.className = 'migration-result success';
+            const stats = data.statistics;
+            resultDiv.innerHTML = `
+                <strong>✓ Migration réussie</strong><br/>
+                <ul>
+                    <li>Enregistrements importés: ${stats.imported}</li>
+                    <li>Enregistrements ignorés (doublons): ${stats.skipped}</li>
+                    <li>Total lu: ${stats.total_records}</li>
+                    <li>Erreurs: ${stats.errors}</li>
+                    <li>Fichiers traités: ${stats.files_processed}</li>
+                </ul>
+            `;
+        } else if (response.status === 401) {
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = '❌ Erreur d\'authentification: clé API invalide';
+            localStorage.removeItem('apiKey'); // Remove invalid key
+        } else {
+            resultDiv.className = 'migration-result error';
+            resultDiv.textContent = `❌ Erreur: ${data.detail}`;
+        }
+    } catch (error) {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'migration-result error';
+        resultDiv.textContent = `❌ Erreur: ${error.message}`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Programmer la migration';
+        // Reload measurements data
+        setTimeout(() => {
+            loadMeasurements();
         }, 1000);
     }
 }
@@ -853,4 +934,131 @@ function updateInstrumentCard(instrumentName, reading) {
     if (statusMsg) {
         statusMsg.innerHTML = getStatusMessage(statusClass);
     }
+}
+
+/* ============================================
+   MEASUREMENTS PAGE FUNCTIONS
+   ============================================ */
+
+// Type badge colors
+const typeBadgeColors = {
+    cryogen_level: "type-cryogen",
+    temperature: "type-temperature",
+    humidity: "type-humidity",
+    pressure: "type-pressure",
+    status: "type-status",
+};
+
+// Format timestamp
+function formatTimestamp(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    });
+}
+
+// Load measurements
+async function loadMeasurements() {
+    const device = document.getElementById("filter-device").value;
+    const location = document.getElementById("filter-location").value;
+    const type = document.getElementById("filter-type").value;
+    const hours = document.getElementById("filter-hours").value;
+
+    // Show loading state
+    document.getElementById("loading-state").style.display = "block";
+    document.getElementById("measurements-table").style.display = "none";
+    document.getElementById("empty-state").style.display = "none";
+    document.getElementById("error-message").classList.remove("show");
+
+    try {
+        // Build query string
+        const params = new URLSearchParams();
+        if (device) params.append("device", device);
+        if (location) params.append("location", location);
+        if (type) params.append("measurement_type", type);
+        params.append("hours", hours);
+        params.append("limit", 500);
+
+        const response = await fetch(`/api/measurements?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const measurements = await response.json();
+
+        // Update stats
+        updateStats(measurements);
+
+        // Populate table
+        if (measurements.length === 0) {
+            document.getElementById("empty-state").style.display = "block";
+        } else {
+            populateTable(measurements);
+            document.getElementById("measurements-table").style.display = "table";
+        }
+    } catch (error) {
+        console.error("Error loading measurements:", error);
+        const errorDiv = document.getElementById("error-message");
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.classList.add("show");
+    } finally {
+        document.getElementById("loading-state").style.display = "none";
+    }
+}
+
+// Update statistics
+function updateStats(measurements) {
+    // Total measurements
+    document.getElementById("stat-total").textContent = measurements.length;
+
+    // Unique types
+    const types = new Set(measurements.map((m) => m.measurement_type));
+    document.getElementById("stat-types").textContent = types.size;
+
+    // Unique devices
+    const devices = new Set(measurements.filter((m) => m.device).map((m) => m.device));
+    document.getElementById("stat-devices").textContent = devices.size;
+}
+
+// Populate table with measurements
+function populateTable(measurements) {
+    const tbody = document.getElementById("table-body");
+    tbody.innerHTML = "";
+
+    measurements.forEach((m) => {
+        const row = document.createElement("tr");
+        const badgeClass = typeBadgeColors[m.measurement_type] || "type-status";
+        const metadata = m.data ? JSON.stringify(m.data).substring(0, 50) : "—";
+
+        row.innerHTML = `
+            <td>${m.id}</td>
+            <td>${m.device || "—"}</td>
+            <td>${m.location || "—"}</td>
+            <td><span class="type-badge ${badgeClass}">${m.measurement_type}</span></td>
+            <td>${m.value !== null ? `${m.value} ${m.unit || ""}` : "—"}</td>
+            <td class="timestamp">${formatTimestamp(m.timestamp)}</td>
+            <td class="metadata" title="${metadata}">${metadata}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Apply filters
+function applyFilters() {
+    loadMeasurements();
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById("filter-device").value = "";
+    document.getElementById("filter-location").value = "";
+    document.getElementById("filter-type").value = "";
+    document.getElementById("filter-hours").value = "24";
+    loadMeasurements();
 }
