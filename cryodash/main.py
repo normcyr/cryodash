@@ -283,11 +283,20 @@ def create_app() -> FastAPI:
     # Root endpoint serves index.html
     @app.get("/")
     async def root():
-        """Serve the main dashboard page."""
+        """Serve the public dashboard page (no authentication required)."""
+        public_path = STATIC_DIR / "public.html"
+        if public_path.exists():
+            return FileResponse(public_path)
+        return {"message": "Welcome to CryoDash"}
+
+    # Admin dashboard endpoint (requires authentication)
+    @app.get("/dashboard")
+    async def dashboard():
+        """Serve the admin dashboard page (requires JWT login)."""
         index_path = STATIC_DIR / "index.html"
         if index_path.exists():
             return FileResponse(index_path)
-        return {"message": "Welcome to CryoDash API"}
+        return {"message": "Dashboard not found"}
 
     # Login page endpoint
     @app.get("/login.html")

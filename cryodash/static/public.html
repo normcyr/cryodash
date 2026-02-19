@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryoDash - Suivi des Cryogènes</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <h1>🧊 CryoDash</h1>
+                <div id="connection-status" class="connection-status disconnected" title="État de connexion WebSocket">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Déconnecté</span>
+                </div>
+            </div>
+            <p class="subtitle">Suivi en temps réel des niveaux de cryogènes RMN</p>
+
+            <!-- Navigation tabs - Public view only shows Dashboard -->
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-page="dashboard">
+                    📊 Dashboard
+                </button>
+                <a href="/dashboard" class="nav-tab" style="
+                    margin-left: auto;
+                    background: #3b82f6;
+                    text-decoration: none;
+                ">
+                    🔐 Admin
+                </a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Dashboard Page - Only page in public view -->
+            <div id="dashboard-page" class="page-content active">
+                <div id="instruments-grid" class="instruments-grid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 CryoDash | <a href="https://github.com/normcyr/cryodash">GitHub</a></p>
+        </footer>
+    </div>
+
+        <!-- Load Chart.js -->
+        <script src="/static/chart.umd.js"></script>
+        <!-- Load authentication utilities -->
+        <script src="/static/auth.js"></script>
+        <!-- Attendre que Chart.js soit chargé avant de lancer l'app -->
+        <script>
+            function loadCryodashScripts() {
+                var ws = document.createElement('script');
+                ws.src = '/static/websocket-client.js';
+                ws.onload = function() {
+                    var main = document.createElement('script');
+                    main.src = '/static/public.js';
+                    document.body.appendChild(main);
+                };
+                document.body.appendChild(ws);
+            }
+            // Attendre que Chart soit défini
+            (function waitForChart() {
+                if (typeof Chart !== 'undefined') {
+                    loadCryodashScripts();
+                } else {
+                    setTimeout(waitForChart, 30);
+                }
+            })();
+        </script>
+</body>
+</html>

@@ -11,7 +11,6 @@ from cryodash.auth import (
     create_access_token,
     get_admin_user,
     get_current_user,
-    verify_password,
 )
 from cryodash.config import API_KEY
 
@@ -67,13 +66,12 @@ async def login(credentials: LoginRequest):
             detail="Invalid username or password",
         )
 
-    if not verify_password(credentials.password, ADMIN_PASSWORD):
-        # For initial setup, allow API_KEY as plaintext
-        if credentials.password != ADMIN_PASSWORD:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password",
-            )
+    # Direct plaintext comparison for admin password (API_KEY)
+    if credentials.password != ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
 
     # Create access token
     access_token = create_access_token(

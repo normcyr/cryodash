@@ -8,18 +8,10 @@ let instruments = [];  // Cache of instruments
 // Initialize on page load
 
 async function cryodashInit() {
-    // Protect this page - require authentication
-    const isValid = await protectPage(false);  // false = not admin-only
-    if (!isValid) return;
+    // Public dashboard - no authentication required
+    // Only display Dashboard tab, no admin functions
 
-    // Setup auth UI
-    setupAuthUI();
-    hideAdminSections();
-
-    setupPageNavigation();
-    setupAdminControls();
     setupConnectionStatusIndicator();
-    setupChartControls();
     await loadInstruments();
     // Setup WebSocket connections AFTER instruments are loaded
     setupWebSocketConnections();
@@ -84,7 +76,7 @@ function switchPage(pageName) {
  */
 async function loadInstruments() {
     try {
-        const response = await authenticatedFetch(`/instruments`);
+        const response = await fetch(`/api/instruments`);
         if (!response.ok) throw new Error('Failed to fetch instruments');
 
         instruments = await response.json();
@@ -111,7 +103,7 @@ async function displayInstruments(instruments) {
 
     for (const instrument of instruments) {
         try {
-            const detailResponse = await authenticatedFetch(`/instruments/${instrument.name}`);
+            const detailResponse = await fetch(`/api/instruments/${instrument.name}`);
             if (!detailResponse.ok) throw new Error('Failed to fetch instrument details');
 
             const detail = await detailResponse.json();
@@ -272,7 +264,7 @@ async function loadCharts() {
 
     try {
         // Get instrument details to know which cryogens to display
-        const response = await authenticatedFetch(`/instruments/${device}`);
+        const response = await fetch(`/api/instruments/${device}`);
         if (!response.ok) throw new Error('Failed to fetch instrument details');
 
         const instrument = await response.json();
@@ -306,8 +298,8 @@ async function loadSingleChart(device, cryogen, hours) {
             return;
         }
 
-        const response = await authenticatedFetch(
-            `/instruments/${device}/history?cryogen=${cryogen}&hours=${hours}`
+        const response = await fetch(
+            `/api/instruments/${device}/history?cryogen=${cryogen}&hours=${hours}`
         );
 
         if (!response.ok) throw new Error('Failed to fetch history');
@@ -344,8 +336,8 @@ async function loadDualCharts(device, cryogens, hours) {
 
         // Fetch data for both cryogens in parallel
         const [n2Response, heResponse] = await Promise.all([
-            authenticatedFetch(`/instruments/${device}/history?cryogen=N2&hours=${hours}`),
-            authenticatedFetch(`/instruments/${device}/history?cryogen=He&hours=${hours}`)
+            fetch(`/api/instruments/${device}/history?cryogen=N2&hours=${hours}`),
+            fetch(`/api/instruments/${device}/history?cryogen=He&hours=${hours}`)
         ]);
 
         if (!n2Response.ok || !heResponse.ok) {
@@ -549,7 +541,7 @@ async function loadAdminData() {
 
 async function loadSyncStatus() {
     try {
-        const response = await authenticatedFetch(`/sync-status`);
+        const response = await fetch(`/api/sync-status`);
         const data = await response.json();
         const statusText = document.getElementById('sync-status-text');
         if (statusText) {
@@ -568,7 +560,7 @@ async function triggerManualSync() {
     btn.textContent = 'Synchronisation en cours...';
 
     try {
-        const response = await authenticatedFetch(`/sync-logs`, { method: 'POST' });
+        const response = await fetch(`/api/sync-logs`, { method: 'POST' });
         const data = await response.json();
 
         resultDiv.style.display = 'block';
@@ -614,7 +606,7 @@ async function triggerLogMigration() {
     btn.textContent = 'Migration en cours...';
 
     try {
-        const response = await authenticatedFetch(`/admin/migrate-logs-to-measurements`, {
+        const response = await fetch(`/api/admin/migrate-logs-to-measurements`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -659,7 +651,7 @@ async function triggerLogMigration() {
 
 async function loadDatabaseStats() {
     try {
-        const response = await authenticatedFetch(`/stats`);
+        const response = await fetch(`/api/stats`);
         const data = await response.json();
         const container = document.getElementById('db-stats-container');
 
@@ -690,7 +682,7 @@ async function loadDatabaseStats() {
 async function loadEvaporationRates() {
     try {
         const hours = document.getElementById('evap-hours').value || '24';
-        const response = await authenticatedFetch(`/evaporation-rate?hours=${hours}`);
+        const response = await fetch(`/api/evaporation-rate?hours=${hours}`);
         const data = await response.json();
         const container = document.getElementById('evap-rates-container');
 
@@ -739,7 +731,7 @@ async function loadEvaporationRates() {
 
 async function loadSyncHistory() {
     try {
-        const response = await authenticatedFetch(`/sync-history?limit=20`);
+        const response = await fetch(`/api/sync-history?limit=20`);
         const data = await response.json();
         const container = document.getElementById('sync-history-container');
 
@@ -787,7 +779,7 @@ async function loadSyncHistory() {
  */
 async function loadEvaporationRatesForDashboard() {
     try {
-        const response = await authenticatedFetch(`/evaporation-rate?hours=24`);
+        const response = await fetch(`/api/evaporation-rate?hours=24`);
         const rates = await response.json();
 
         // Create a map for quick lookup
