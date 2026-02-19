@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     """Manage WebSocket connections and broadcast updates."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the connection manager."""
         self.active_connections: dict[str, set[WebSocket]] = {}
 

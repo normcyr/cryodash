@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text
@@ -237,7 +237,7 @@ class MeasurementResponseSchema(BaseModel):
             return None
         if isinstance(v, str):
             try:
-                return json.loads(v)
+                return cast(dict[str, Any], json.loads(v))
             except (json.JSONDecodeError, TypeError):
                 return None
-        return v
+        return cast(dict[str, Any], v)
