@@ -35,6 +35,9 @@ dependencies = [
     "requests>=2.31.0",
     "slowapi>=0.1.9",
     "python-dotenv>=1.0.0",
+    "pyjwt>=2.8.0",
+    "python-multipart>=0.0.6",
+    "passlib[bcrypt]>=1.7.4",
 ]
 
 [project.optional-dependencies]
@@ -49,9 +52,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cryodash"
-Documentation = "https://github.com/yourusername/cryodash"
-Repository = "https://github.com/yourusername/cryodash.git"
+Homepage = "https://github.com/normcyr/cryodash"
+Documentation = "https://github.com/normcyr/cryodash"
+Repository = "https://github.com/normcyr/cryodash.git"
 
 [tool.setuptools]
 packages = ["cryodash"]

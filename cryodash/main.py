@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter  # type: ignore
 from slowapi.util import get_remote_address  # type: ignore
 
+from cryodash.api.auth import router as auth_router
 from cryodash.api.routes import router
 from cryodash.config import (
     ALLOWED_ORIGINS,
@@ -266,6 +267,7 @@ def create_app() -> FastAPI:
         return response
 
     # Include API routes
+    app.include_router(auth_router)
     app.include_router(router)
 
     # Simple health check BEFORE TrustedHost validation
@@ -286,6 +288,15 @@ def create_app() -> FastAPI:
         if index_path.exists():
             return FileResponse(index_path)
         return {"message": "Welcome to CryoDash API"}
+
+    # Login page endpoint
+    @app.get("/login.html")
+    async def login_page():
+        """Serve the login page."""
+        login_path = STATIC_DIR / "login.html"
+        if login_path.exists():
+            return FileResponse(login_path)
+        return {"message": "Login page not found"}
 
     # Measurements page endpoint
     @app.get("/measurements")
