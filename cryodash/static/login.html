@@ -175,8 +175,8 @@
                     localStorage.setItem('username', data.username);
                     localStorage.setItem('is_admin', data.is_admin);
 
-                    // Redirect to dashboard
-                    window.location.href = '/';
+                    // Redirect to admin dashboard
+                    window.location.href = '/dashboard';
                 } else {
                     throw new Error(data.detail || 'Login failed');
                 }
@@ -192,7 +192,7 @@
 
         // Check if already logged in
         if (localStorage.getItem('access_token')) {
-            window.location.href = '/';
+            window.location.href = '/dashboard';
         }
     </script>
 </body>

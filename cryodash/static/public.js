@@ -224,6 +224,9 @@ function determineOverallStatus(readings) {
 function populateChartSelects(instruments) {
     const deviceSelect = document.getElementById('device-select');
 
+    // Public view doesn't have device-select (no Charts tab)
+    if (!deviceSelect) return;
+
     deviceSelect.innerHTML = '<option value="">Sélectionner un appareil</option>';
 
     instruments.forEach(instrument => {
