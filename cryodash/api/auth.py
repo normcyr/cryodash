@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from cryodash.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     TokenData,
     create_access_token,
     get_admin_user,
@@ -76,7 +77,7 @@ async def login(credentials: LoginRequest):
     # Create access token
     access_token = create_access_token(
         data={"sub": ADMIN_USERNAME, "is_admin": True},
-        expires_delta=timedelta(hours=24),
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
     return LoginResponse(
