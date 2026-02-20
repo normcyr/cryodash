@@ -1,4 +1,5 @@
-FROM python:3.12-alpine
+# Use Debian slim base to simplify native dependency installation (psycopg)
+FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,13 +9,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies and uv
-RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    curl \
-    tzdata \
+# Install system dependencies and uv (curl needed)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       gcc \
+       libpq-dev \
+       curl \
+       ca-certificates \
+       tzdata \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && apt-get remove -y build-essential gcc \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Add uv to PATH

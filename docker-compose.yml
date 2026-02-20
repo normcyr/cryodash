@@ -1,6 +1,23 @@
 version: "3.8"
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cryodash-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-cryo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cryo}
+      - POSTGRES_DB=${POSTGRES_DB:-cryodash}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cryodash-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cryo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   cryodash:
     build:
       context: .
@@ -17,7 +34,8 @@ services:
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8000}
       - DEBUG=${DEBUG:-False}
-      - DATABASE_URL=sqlite:////app/data/cryodash.db
+      # Allow DATABASE_URL override; default to sqlite for local/dev
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/cryodash.db}
       - DB_ECHO=${DB_ECHO:-False}
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
       - TZ=America/Toronto
@@ -33,11 +51,15 @@ services:
     labels:
       - "com.example.description=CryoDash - Cryogenic Level Monitoring"
       - "com.example.version=0.1.0"
+    depends_on:
+      - postgres
 
 volumes:
   cryodash_data:
     driver: local
   cryodash_logs:
+    driver: local
+  postgres_data:
     driver: local
 
 networks:

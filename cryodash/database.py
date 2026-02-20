@@ -16,10 +16,16 @@ if "sqlite" in DATABASE_URL:
         Path(db_dir).mkdir(parents=True, exist_ok=True)
 
 # Create engine
+connect_args = {}
+if "sqlite" in DATABASE_URL:
+    connect_args = {"check_same_thread": False}
+
+# Use pool_pre_ping for remote DBs (helpful for cloud deployments)
 engine = create_engine(
     DATABASE_URL,
     echo=DB_ECHO,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    connect_args=connect_args,
+    pool_pre_ping=(False if "sqlite" in DATABASE_URL else True),
 )
 
 # Create session factory

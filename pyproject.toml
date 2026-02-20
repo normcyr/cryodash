@@ -38,6 +38,8 @@ dependencies = [
     "pyjwt>=2.8.0",
     "python-multipart>=0.0.6",
     "passlib[bcrypt]>=1.7.4",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.11",
 ]
 
 [project.optional-dependencies]
