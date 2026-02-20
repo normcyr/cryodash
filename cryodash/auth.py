@@ -2,12 +2,12 @@
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, cast
 
-import jwt
+import jwt  # type: ignore[import]
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from passlib.context import CryptContext
+from passlib.context import CryptContext  # type: ignore[import]
 
 from cryodash.config import API_KEY
 
@@ -37,12 +37,14 @@ class TokenData:
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    # `pwd_context.hash` is untyped; cast to `str` to satisfy mypy
+    return cast(str, pwd_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # `pwd_context.verify` is untyped; cast to `bool` to satisfy mypy
+    return cast(bool, pwd_context.verify(plain_password, hashed_password))
 
 
 def create_access_token(
@@ -65,7 +67,8 @@ def create_access_token(
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    # PyJWT is untyped here; cast the result to `str` for mypy
+    encoded_jwt = cast(str, jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM))
     return encoded_jwt
 
 
@@ -80,7 +83,8 @@ def decode_token(token: str) -> Optional[dict]:
         Decoded token payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        # jwt.decode is untyped; cast to a dict for mypy
+        payload = cast(dict, jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]))
         return payload
     except jwt.ExpiredSignatureError:
         logger.debug("Token has expired")
@@ -115,16 +119,17 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    username: str = payload.get("sub")
-    is_admin: bool = payload.get("is_admin", False)
+    username_any = payload.get("sub")
+    username_opt = cast(Optional[str], username_any)
+    is_admin = bool(payload.get("is_admin", False))
 
-    if username is None:
+    if username_opt is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
+    username = cast(str, username_opt)
     return TokenData(username=username, is_admin=is_admin)
 
 
