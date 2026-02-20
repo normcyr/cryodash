@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter  # type: ignore
 from slowapi.util import get_remote_address  # type: ignore
 
+from cryodash.api.auth import router as auth_router
 from cryodash.api.routes import router
 from cryodash.config import (
     ALLOWED_ORIGINS,
@@ -266,6 +267,7 @@ def create_app() -> FastAPI:
         return response
 
     # Include API routes
+    app.include_router(auth_router)
     app.include_router(router)
 
     # Simple health check BEFORE TrustedHost validation
@@ -281,11 +283,29 @@ def create_app() -> FastAPI:
     # Root endpoint serves index.html
     @app.get("/")
     async def root():
-        """Serve the main dashboard page."""
+        """Serve the public dashboard page (no authentication required)."""
+        public_path = STATIC_DIR / "public.html"
+        if public_path.exists():
+            return FileResponse(public_path)
+        return {"message": "Welcome to CryoDash"}
+
+    # Admin dashboard endpoint (requires authentication)
+    @app.get("/dashboard")
+    async def dashboard():
+        """Serve the admin dashboard page (requires JWT login)."""
         index_path = STATIC_DIR / "index.html"
         if index_path.exists():
             return FileResponse(index_path)
-        return {"message": "Welcome to CryoDash API"}
+        return {"message": "Dashboard not found"}
+
+    # Login page endpoint
+    @app.get("/login.html")
+    async def login_page():
+        """Serve the login page."""
+        login_path = STATIC_DIR / "login.html"
+        if login_path.exists():
+            return FileResponse(login_path)
+        return {"message": "Login page not found"}
 
     # Measurements page endpoint
     @app.get("/measurements")

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
+from cryodash.auth import get_admin_user
 from cryodash.config import ALERT_THRESHOLDS
 from cryodash.database import get_db
 from cryodash.models import (
@@ -314,10 +315,10 @@ def health_check():
 
 
 @router.post("/sync-logs")
-def sync_logs_endpoint():
+def sync_logs_endpoint(_current_user=Depends(get_admin_user)):
     """Manually trigger log synchronization from remote server.
 
-    Note: Not authenticated to allow sync from dashboard UI.
+    Requires admin authentication (JWT token).
     Rate limited to 1 sync per 10 minutes to avoid overloading the remote server.
     The sync operation reads from a trusted internal HTTP source only.
     """
@@ -355,7 +356,7 @@ def sync_logs_endpoint():
 @router.post("/admin/migrate-logs-to-measurements")
 def migrate_logs_endpoint(
     db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key),
+    _current_user=Depends(get_admin_user),
 ):
     """
     Migrate historical cryogenic log data to Measurement table.

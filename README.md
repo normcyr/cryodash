@@ -17,7 +17,8 @@ Dashboard pour le suivi en temps réel des niveaux de cryogènes (azote liquide 
 - 🔄 Synchronisation **automatique toutes les heures** depuis serveur HTTP
 - ⚙️ **Section Admin** : contrôle sync, statistiques BD, historique
 - 📱 API REST complète pour accès aux données
-- � **Sécurité avancée** : Authentification API, rate limiting, headers HTTPS, analyse sécurité
+- 🔐 **Authentification JWT** : admin dashboard avec connexion sécurisée (24h expiration)
+- 🔒 **Sécurité avancée** : Authentification API Key, rate limiting, headers HTTPS, analyse sécurité
 - 💾 Base de données SQLite intégrée
 - 🎨 Interface modern dark theme responsive
 - 🛠️ **Outils modernes** : uv pour gestion paquets, prek pour hooks pre-commit, bandit pour sécurité
@@ -97,6 +98,9 @@ python -m cryodash.main
 
 Le dashboard sera accessible à `http://localhost:8000`
 
+- **Publique** (`/`) : Dashboard read-only sans authentification
+- **Admin** (`/dashboard`) : Accès complet avec login JWT (username: `admin`, password: `API_KEY`)
+
 Fonctionnalités incluses :
 
 - **Dashboard** : Suivi temps réel des niveaux + taux d'évaporation
@@ -116,65 +120,55 @@ curl -X POST http://localhost:8000/api/sync-logs
 # Ou via le bouton Admin du dashboard
 ```
 
-## Sécurité & Authentification
+## Authentification & Sécurité
 
-CryoDash protège les endpoints de mutation (POST) avec une **authentification par clé API** via en-tête HTTP.
+CryoDash utilise deux systèmes d'authentification selon le contexte :
 
-### Configuration
+### 1. JWT pour le Dashboard Admin
 
-Les variables d'environnement contrôlent l'authentification :
+Le dashboard admin (`/dashboard`) est protégé par **JWT tokens** (24h expiration).
+
+**Accès :**
+
+- Vue Publique (`/`) : Accessible sans login
+- Vue Admin (`/dashboard`) : Username `admin`, Password = votre `API_KEY`
+- Après login : Token JWT stocké dans localStorage, auto-refresh sur 401
+
+**Endpoints admin protégés :**
 
 ```bash
-# Activer/désactiver l'authentification (défaut: true en production)
+# Déclencher sync manuelle (JWT required)
+curl -X POST https://cryodash-dev.up.railway.app/api/sync-logs \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Migrer logs vers Measurements (JWT required)
+curl -X POST https://cryodash-dev.up.railway.app/api/admin/migrate-logs-to-measurements \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### 2. API Key pour les Instruments Push
+
+Les instruments utilisent une **clé API** pour soumettre des données via `X-API-Key` header (pas de login).
+
+```bash
+# Créer une lecture (X-API-Key required)
+curl -X POST http://localhost:8000/api/readings \
+  -H "X-API-Key: your-secure-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"instrument_name": "neo600", "level": 75.5, "cryogen": "N2"}'
+```
+
+**Configuration :**
+
+```bash
+# Activer validation clé API (défaut: true en production)
 REQUIRE_API_KEY=true
 
-# Clé API secrète (en production: variable d'environnement sécurisée)
+# Clé API secrète
 API_KEY=your-secure-api-key-here
 ```
 
-**Développement local :** Dans un environnement de dev, vous pouvez désactiver l'authentification :
-
-```bash
-REQUIRE_API_KEY=false
-```
-
-### Endpoints protégés
-
-Les endpoints suivants **nécessitent une authentification** :
-
-- `POST /api/readings` - Créer une lecture
-- `POST /api/instruments` - Créer un appareil
-- `POST /api/sync-logs` - Déclencher une synchronisation manuelle
-
-### Utilisation de l'API avec authentification
-
-Fournissez votre clé API dans l'en-tête `X-API-Key` :
-
-```bash
-# Créer une lecture avec authentification
-curl -X POST http://localhost:8000/api/readings \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-secure-api-key-here" \
-  -d '{
-    "instrument_name": "neo600",
-    "level": 75.5,
-    "cryogen": "N2",
-    "timestamp": "2024-12-19T14:30:00Z"
-  }'
-
-# Créer un appareil
-curl -X POST http://localhost:8000/api/instruments \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-secure-api-key-here" \
-  -d '{
-    "name": "neo600",
-    "description": "Spectromètre RMN 600 MHz"
-  }'
-
-# Déclencher une synchronisation manuelle
-curl -X POST http://localhost:8000/api/sync-logs \
-  -H "X-API-Key: your-secure-api-key-here"
-```
+**Note :** En développement local, `REQUIRE_API_KEY=false` désactive la validation.
 
 ### Validation des données
 
@@ -213,17 +207,25 @@ cryodash/
 │   ├── config.py            # Configuration seuils/paths
 │   ├── models.py            # Modèles DB + Schemas Pydantic
 │   ├── database.py          # Setup SQLAlchemy/SQLite
+│   ├── auth.py              # JWT tokens + password hashing
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── routes.py        # Tous les endpoints API
+│   │   ├── routes.py        # Tous les endpoints API
+│   │   └── auth.py          # Routes d'authentification (/api/auth/*)
 │   ├── scripts/
 │   │   ├── __init__.py
 │   │   ├── import_logs.py   # Parser logs locaux
 │   │   └── sync_remote_logs.py   # Télécharge depuis HTTP
 │   └── static/
-│       ├── index.html       # UI (3 pages : Dashboard/Graphiques/Admin)
+│       ├── index.html       # UI admin (Dashboard/Graphiques/Measurements/Admin)
+│       ├── public.html      # UI publique (Dashboard only, read-only)
+│       ├── login.html       # Page de login JWT
 │       ├── style.css        # Dark theme avec variables CSS
-│       └── script.js        # Frontend vanilla JS + Fetch
+│       ├── script.js        # Frontend admin avec JWT auth
+│       ├── public.js        # Frontend public (no auth)
+│       ├── auth.js          # Utilitaires JWT (authenticatedFetch, protectPage, etc)
+│       ├── websocket-client.js  # Client WebSocket pour real-time updates
+│       └── chart.umd.js     # TradingView Lightweight Charts
 ├── pyproject.toml
 ├── AGENT_INSTRUCTIONS.md    # Directives pour agents
 ├── README.md
@@ -250,6 +252,13 @@ cryodash/
 - `GET /api/sync-history?limit=50` - **Historique des syncs**
 - `GET /api/stats` - **Statistiques BD**
 - `GET /api/evaporation-rate?hours=24` - **Taux d'évaporation (%/jour)**
+
+### Authentification (JWT)
+
+- `POST /api/auth/login` - Obtenir JWT token
+- `GET /api/auth/me` - Vérifier session actuelle
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/admin/check` - Vérifier statut admin
 
 ### Paramètres de query courants
 
